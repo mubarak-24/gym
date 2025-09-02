@@ -1,0 +1,21 @@
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+
+# Node / PWA
+node_modules/
+dist/
+build/
+*.log
+
+# Secrets & env
+.env
+.env.*
+credentials/
+credentials/*.json
+
+# OS / IDE
+.DS_Store
+.vscode/

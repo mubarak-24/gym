@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<style>
+  .login-wrap{
+    min-height: calc(100dvh - 120px);
+    display:grid; place-items:center;
+    position:relative; isolation:isolate;
+    padding:24px;
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(0,0,0,.25), transparent 60%),
+      radial-gradient(1000px 500px at 120% 110%, rgba(0,0,0,.18), transparent 55%),
+      #b7ab9c;
+  }
+  .login-wrap::before{
+    content:"";
+    position:absolute; inset:0; z-index:-1;
+    background: url("{{ url_for('static', filename='img/login-bg.jpg') }}") center/cover no-repeat;
+    opacity:.22; filter: blur(2px);
+  }
+
+  .login-card{
+    width:min(560px, 100%);
+    border-radius:18px;
+    background:#2c3232; color:#fff;
+    padding:26px 22px 22px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35), inset 0 -10px 0 rgba(0,0,0,.18);
+    position:relative;
+  }
+  .login-tab{
+    position:absolute; top:-34px; left:50%; translate:-50% 0;
+    width:220px; height:62px; border-radius:14px 14px 10px 10px;
+    background: linear-gradient(180deg, #f0b89b, #b57f69);
+    box-shadow: 0 6px 0 #2c3232, 0 10px 30px rgba(0,0,0,.35);
+  }
+
+  .login-title{ margin:6px 0 16px; font-size:28px; font-weight:800; letter-spacing:.2px; }
+  .login-label{ font-weight:700; margin:12px 0 6px; display:block; }
+  .login-input{
+    width:100%; height:44px;
+    border-radius:10px; border:1px solid #505656;
+    background:#424848; color:#fff; padding:0 12px;
+    outline:none; transition:border-color .15s, box-shadow .15s;
+  }
+  .login-input::placeholder{ color:rgba(255,255,255,.55); }
+  .login-input:focus{ border-color:#9ad1ff; box-shadow:0 0 0 3px rgba(154,209,255,.25); }
+
+  .login-actions{ display:flex; gap:10px; align-items:center; margin-top:14px; flex-wrap:wrap; }
+  .btn-primary{
+    background:#00b37a; color:#0b1f1a; font-weight:800;
+    border:none; padding:10px 14px; border-radius:10px; cursor:pointer;
+  }
+  .btn-primary[disabled]{ opacity:.6; cursor:wait; }
+  .muted{ opacity:.75; font-size:14px; }
+
+  .loading{
+    position:fixed; inset:auto 16px 16px auto;
+    display:none; align-items:center; gap:10px;
+    background:rgba(44,50,50,.95); color:#fff;
+    border:1px solid #505656; border-radius:12px;
+    padding:10px 12px; box-shadow:0 8px 22px rgba(0,0,0,.35);
+    z-index:50;
+  }
+  .loading.show{ display:flex; }
+  .spin{ animation:spin 1s linear infinite; width:28px; height:28px; }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+</style>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-tab" aria-hidden="true"></div>
+
+    <h1 class="login-title">Sign in</h1>
+
+    {% with msgs = get_flashed_messages(with_categories=true) %}
+      {% if msgs %}
+        <ul style="list-style:none;padding:0;margin:0 0 10px;">
+        {% for cat,msg in msgs %}
+          <li style="background:#3b4040;border:1px solid #585f5f;color:#fff;padding:8px 10px;border-radius:10px;margin:6px 0;">
+            {{ msg }}
+          </li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
+
+    <!-- ✅ post to the POST route -->
+    <form id="loginForm" method="post" action="{{ url_for('login_post', **request.args) }}" novalidate>
+      <label class="login-label" for="username">Username</label>
+      <input class="login-input" id="username" name="username"
+             autocomplete="username" spellcheck="false" placeholder="yourname"
+             required autofocus>
+
+      <label class="login-label" for="password">Password</label>
+      <input class="login-input" id="password" name="password" type="password"
+             autocomplete="current-password" placeholder="••••••••" required>
+
+      <div class="login-actions">
+        <button id="submitBtn" type="submit" class="btn-primary">Login</button>
+        <span class="muted">No account?
+          <a href="{{ url_for('signup') }}" style="color:#9ad1ff">Sign up</a>
+        </span>
+      </div>
+    </form>
+  </div>
+
+  <!-- corner loader -->
+  <div id="loader" class="loading" role="status" aria-live="polite" aria-label="Signing in">
+    <svg class="spin" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="8" y="24" width="8" height="16" rx="2" fill="#9ad1ff"/>
+      <rect x="48" y="24" width="8" height="16" rx="2" fill="#9ad1ff"/>
+      <rect x="22" y="28" width="20" height="8" rx="3" fill="#e3f6ff"/>
+      <rect x="4" y="22" width="4" height="20" rx="2" fill="#6fbde9"/>
+      <rect x="56" y="22" width="4" height="20" rx="2" fill="#6fbde9"/>
+    </svg>
+    <span>Signing in…</span>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function(){
+    const form = document.getElementById('loginForm');
+    const btn  = document.getElementById('submitBtn');
+    const load = document.getElementById('loader');
+
+    form.addEventListener('submit', function(e){
+      if(!form.username.value.trim() || !form.password.value.trim()){
+        e.preventDefault(); return;
+      }
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+      load.classList.add('show');
+    });
+  })();
+</script>
+{% endblock %}

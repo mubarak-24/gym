@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Admin{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 12px">Admin</h1>
+<p class="muted" style="opacity:.75;margin:0 0 18px">Quick links for management.</p>
+
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+  <a class="card" href="{{ url_for('admin_users') }}" style="padding:16px;border:1px solid #eee;border-radius:14px;text-decoration:none;color:inherit">
+    <div style="font-size:13px;opacity:.7">People</div>
+    <div style="font-weight:700;margin:6px 0">Users</div>
+    <div style="font-size:12px;opacity:.7">View, promote, reset passwords</div>
+  </a>
+  <a class="card" href="{{ url_for('admin_logs') }}" style="padding:16px;border:1px solid #eee;border-radius:14px;text-decoration:none;color:inherit">
+    <div style="font-size:13px;opacity:.7">Data</div>
+    <div style="font-weight:700;margin:6px 0">Workout Logs</div>
+    <div style="font-size:12px;opacity:.7">Search, filter, export</div>
+  </a>
+</div>
+
+<p style="margin-top:16px"><a href="{{ url_for('home') }}">← Back to user Dashboard</a></p>
+{% endblock %}

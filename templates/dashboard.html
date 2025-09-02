@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Full-bleed area so the main card can expand to page edges -->
+<div class="full-bleed" style="padding:28px 12px 36px; display:flex; justify-content:center;">
+  <div style="width:min(1600px, 100% - 24px)">
+
+    <!-- Accent tab -->
+    <div aria-hidden="true"
+         style="width:220px;height:44px;border-radius:12px;
+                background:linear-gradient(180deg,#e6a98f,#c7886b);
+                box-shadow:0 10px 24px rgba(0,0,0,.18);
+                margin:0 auto -22px auto;position:relative;z-index:2">
+    </div>
+
+    <!-- Main card -->
+    <section class="panel" style="min-height:clamp(520px, 100dvh - 200px, 1300px)">
+      <header>
+        <h1 style="margin:6px;font-size:28px;letter-spacing:.2px">Dashboard</h1>
+        <p style="opacity:.8;margin:0 6px 18px">
+          Welcome to GymLogger{% if session.get('username') %}, {{ session['username'] }}{% endif %}.
+        </p>
+      </header>
+
+      <!-- Quick actions -->
+      <div class="grid-cards" style="margin:0 6px 20px">
+        <a href="{{ url_for('workouts') }}" class="card"
+           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
+          <div style="font-size:13px;opacity:.75">Quick action</div>
+          <div style="font-weight:700;margin:6px 0">Start Workout</div>
+          <div style="font-size:12px;opacity:.7">Go to step-by-step logging</div>
+        </a>
+
+        <a href="{{ url_for('logs_page') }}" class="card"
+           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
+          <div style="font-size:13px;opacity:.75">Records</div>
+          <div style="font-weight:700;margin:6px 0">View Logs</div>
+          <div style="font-size:12px;opacity:.7">Recent saved sets</div>
+        </a>
+
+        <a href="{{ url_for('logout') }}" class="card"
+           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
+          <div style="font-size:13px;opacity:.75">Session</div>
+          <div style="font-weight:700;margin:6px 0">Logout</div>
+          <div style="font-size:12px;opacity:.7">Sign out from this device</div>
+        </a>
+
+        {% if session.get('role') == 'admin' %}
+          <a href="{{ url_for('admin_index') }}" class="card"
+             style="padding:16px;border:1px solid #6a7cff33;border-radius:14px;text-decoration:none;color:inherit;background:#262a3a;display:flex;flex-direction:column;justify-content:center;min-height:92px">
+            <div style="font-size:13px;opacity:.8">Administration</div>
+            <div style="font-weight:700;margin:6px 0">Admin Access</div>
+            <div style="font-size:12px;opacity:.75">Manage users &amp; logs</div>
+          </a>
+
+          <a href="{{ url_for('admin_users') }}" class="card"
+             style="padding:16px;border:1px solid #6a7cff33;border-radius:14px;text-decoration:none;color:inherit;background:#262a3a;display:flex;flex-direction:column;justify-content:center;min-height:92px">
+            <div style="font-size:13px;opacity:.8">Administration</div>
+            <div style="font-weight:700;margin:6px 0">Admin — Users</div>
+            <div style="font-size:12px;opacity:.75">Invite, promote, reset passwords</div>
+          </a>
+        {% endif %}
+      </div>
+
+      <!-- Recent logs -->
+      <div style="display:flex;align-items:center;gap:8px;margin:10px 6px 8px">
+        <h3 style="margin:0">Recent logs</h3>
+        <span id="db-loader" class="loader-dumbbell" style="display:none"><i></i></span>
+      </div>
+      <ul id="recent" style="padding-left:22px;margin:0 6px;color:#e9eef0;font-size:14px"></ul>
+      <p id="empty" style="opacity:.7;display:none;margin:0 6px">No logs yet — start a workout.</p>
+      <p id="fetchErr" style="opacity:.8;display:none;margin:8px 6px 0;color:#ffd9d9">Couldn’t load logs right now.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function(){
+  const loader  = document.getElementById("db-loader");
+  const list    = document.getElementById("recent");
+  const empty   = document.getElementById("empty");
+  const fetchErr= document.getElementById("fetchErr");
+
+  async function loadLogs(){
+    try{
+      loader.style.display = "inline-block";
+      const res = await fetch("/api/logs?limit=5", { headers: { "Accept":"application/json" }});
+      if(!res.ok) throw new Error("HTTP " + res.status);
+      const data = await res.json();
+
+      if(!data.ok || !Array.isArray(data.items) || data.items.length === 0){
+        empty.style.display = "block";
+        return;
+      }
+      data.items.forEach(r=>{
+        const li  = document.createElement("li");
+        const st  = r.sets ? ` (set ${r.sets})` : "";
+        li.textContent = `${r.date} • ${r.exercise} — ${r.reps} reps @ ${r.weight_kg}kg${st}`;
+        list.appendChild(li);
+      });
+    }catch(e){
+      console.warn("recent logs failed", e);
+      fetchErr.style.display = "block";
+      empty.style.display = "block";
+    }finally{
+      loader.style.display = "none";
+    }
+  }
+
+  loadLogs();
+})();
+</script>
+{% endblock %}

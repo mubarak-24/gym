@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}My Logs{% endblock %}
+
+{% block content %}
+<style>
+  table { border-collapse: collapse; width: 100%; }
+  th, td { border:1px solid #eee; padding:6px 8px; text-align:left; }
+  th { position: sticky; top: 0; background:#fafafa; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
+  .pill { text-decoration:none; padding:6px 10px; border-radius:999px; border:1px solid #e5e5e5 }
+  input, select, button { padding: 8px 10px; border-radius:10px; border:1px solid #ddd }
+</style>
+
+<div class="row">
+  <a href="{{ url_for('home') }}" class="pill">← Dashboard</a>
+  <a href="{{ url_for('workouts') }}" class="pill">+ Add workout</a>
+  <button id="btnCsv">Export CSV</button>
+  <button id="btnGsheet">Export to Google Sheets</button>
+  <label class="small">Limit:
+    <select id="limit">
+      <option>50</option>
+      <option selected>100</option>
+      <option>250</option>
+      <option>500</option>
+    </select>
+  </label>
+</div>
+
+<div id="msg" class="small" style="min-height:20px;margin-bottom:8px;"></div>
+
+<table id="tbl">
+  <thead>
+    <tr>
+      <th>Date</th>
+      <th>Program</th>
+      <th>Exercise</th>
+      <th>Set</th>
+      <th>Reps</th>
+      <th>Weight (kg)</th>
+      <th>RPE</th>
+      <th>Volume (kg)</th>
+      <th>Dur (min)</th>
+      <th>Notes</th>
+      <th>Source</th>
+      <th>Session</th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const el = id => document.getElementById(id);
+const msg = (t, kind="info") => {
+  const m = el("msg"); if(!m) return;
+  m.style.color = kind==="error" ? "crimson" : "#111";
+  m.textContent = t || "";
+};
+
+async function loadLogs(){
+  msg("Loading…");
+  const limit = el("limit").value || 100;
+  const res = await fetch(`/api/logs?limit=${encodeURIComponent(limit)}`);
+  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
+  if (!res.ok || !data.ok) { msg(data.error || "Failed loading logs", "error"); return; }
+  const tbody = document.querySelector("#tbl tbody");
+  tbody.innerHTML = "";
+  for (const r of data.items){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${r.date || ""} ${r.day_name || ""}</td>
+      <td>${r.program || ""}</td>
+      <td>${r.exercise || ""}</td>
+      <td>${r.sets ?? ""}</td>
+      <td>${r.reps ?? ""}</td>
+      <td>${(r.weight_kg ?? "")}</td>
+      <td>${r.rpe ?? ""}</td>
+      <td>${r.volume_kg ?? ""}</td>
+      <td>${r.duration_min ?? ""}</td>
+      <td>${(r.notes || "").replace(/</g,"&lt;")}</td>
+      <td>${r.source || ""}</td>
+      <td>${r.session_id || ""}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  msg(`Loaded ${data.items.length} row(s).`);
+}
+
+function toCSV(items){
+  const header = ["timestamp","date","day_name","program","session_id","exercise","sets","reps","weight_kg","rpe","volume_kg","duration_min","notes","source"];
+  const esc = v => { if(v===null||v===undefined) return ""; const s=String(v).replace(/\"/g,'\"\"'); return /[\",\n]/.test(s) ? `"${s}"` : s; };
+  const lines = [header.join(",")].concat(items.map(r=>header.map(h=>esc(r[h])).join(",")));
+  return lines.join("\n");
+}
+
+async function exportCsv(){
+  const limit = el("limit").value || 100;
+  const res = await fetch(`/api/logs?limit=${encodeURIComponent(limit)}`);
+  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
+  if (!res.ok || !data.ok) { msg(data.error || "Failed to export", "error"); return; }
+  const csv = toCSV(data.items);
+  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "my_workouts.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function exportGoogle(){
+  msg("Exporting to Google Sheets…");
+  const limit = el("limit").value || 100;
+  const res = await fetch(`/export/google?limit=${encodeURIComponent(limit)}`);
+  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
+  if (!res.ok || !data.ok) { msg(data.error || "Google export failed.", "error"); return; }
+  msg(`Exported ${data.exported} row(s) to Google Sheets ✅`);
+  if (data.sheet_url) {
+    // optional: open the sheet
+    window.open(data.sheet_url, "_blank");
+  }
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  loadLogs();
+  el("limit").addEventListener("change", loadLogs);
+  el("btnCsv").addEventListener("click", exportCsv);
+  el("btnGsheet").addEventListener("click", exportGoogle);
+});
+</script>
+{% endblock %}

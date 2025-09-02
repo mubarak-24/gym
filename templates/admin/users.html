@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Admin • Users{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 12px">Users</h1>
+
+<form method="get" style="margin:0 0 12px;display:flex;gap:8px;flex-wrap:wrap">
+  <input name="q" value="{{ request.args.get('q','') }}" placeholder="Search username or email" style="padding:8px 10px;border-radius:10px;border:1px solid #ddd">
+  <button class="btn" type="submit">Search</button>
+  <a class="btn" href="{{ url_for('admin_users') }}" style="text-decoration:none">Reset</a>
+</form>
+
+<table style="width:100%;border-collapse:collapse">
+  <thead>
+    <tr style="text-align:left;border-bottom:1px solid #eee">
+      <th style="padding:8px">ID</th>
+      <th style="padding:8px">Username</th>
+      <th style="padding:8px">Email</th>
+      <th style="padding:8px">Role</th>
+      <th style="padding:8px">Created</th>
+      <th style="padding:8px">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  {% for u in users %}
+    <tr style="border-bottom:1px solid #f2f2f2">
+      <td style="padding:8px">{{ u.id }}</td>
+      <td style="padding:8px">{{ u.username }}</td>
+      <td style="padding:8px">{{ u.email }}</td>
+      <td style="padding:8px">{{ u.role }}</td>
+      <td style="padding:8px">{{ u.created_at }}</td>
+      <td style="padding:8px;display:flex;gap:6px;flex-wrap:wrap">
+        {% if u.role == 'admin' %}
+          <form method="post" action="{{ url_for('admin_user_role', user_id=u.id) }}">
+            <input type="hidden" name="role" value="user">
+            <button class="btn" type="submit">Make User</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('admin_user_role', user_id=u.id) }}">
+            <input type="hidden" name="role" value="admin">
+            <button class="btn" type="submit">Make Admin</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('admin_user_reset_pw', user_id=u.id) }}" onsubmit="return confirm('Reset password for {{u.username}} to a temporary one?')">
+          <button class="btn" type="submit">Reset PW</button>
+        </form>
+      </td>
+    </tr>
+  {% else %}
+    <tr><td colspan="6" style="padding:10px;opacity:.7">No users found.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<p style="margin-top:14px"><a href="{{ url_for('admin_index') }}">← Admin</a></p>
+{% endblock %}

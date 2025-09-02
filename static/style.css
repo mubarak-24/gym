@@ -1,0 +1,10 @@
+/* minimal stylesheet */
+body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 16px; max-width: 900px; }
+nav { display:flex; gap:12px; align-items:center; margin-bottom:10px; flex-wrap:wrap; }
+nav a { text-decoration:none; padding:6px 10px; border-radius:10px; border:1px solid #e5e5e5; }
+.hidden { display:none; }
+.row { display:flex; gap:12px; flex-wrap:wrap; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+.small { font-size:.9rem; opacity:.75; }
+.topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.pill { text-decoration:none; padding:6px 10px; border-radius:999px; border:1px solid #e5e5e5; }

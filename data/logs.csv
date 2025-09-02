@@ -1,0 +1,109 @@
+user_id,username,timestamp,date,day_name,time_hhmm,program,session_id,exercise,sets,reps,weight_kg,rpe,volume_kg,duration_min,notes,source
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,1,12,21,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:33,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Flat chest press,2,2,12,,24,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:38,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Shoulder press,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:43,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Upper back row,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,1,21,12,,252,12,,pwa
+4,mubarak,2025-08-26T20:23:48,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Lat pulldown,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:52,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Tricep push down,2,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,1,12,12,,144,12,,pwa
+4,mubarak,2025-08-26T20:23:56,2025-08-26,Tuesday,20:23,Upper A,s-at07yfoe,Bicep curl,2,12,12,,144,12,,pwa

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Admin • Logs{% endblock %}
+
+{% block content %}
+<h1 style="margin:0 0 12px">Workout Logs</h1>
+
+<form method="get" style="margin:0 12px 14px 0;display:flex;gap:8px;flex-wrap:wrap">
+  <input name="q" value="{{ request.args.get('q','') }}" placeholder="Search exercise or notes" style="padding:8px 10px;border-radius:10px;border:1px solid #ddd">
+  <input name="user" value="{{ request.args.get('user','') }}" placeholder="User ID or username" style="padding:8px 10px;border-radius:10px;border:1px solid #ddd">
+  <input name="limit" value="{{ request.args.get('limit','100') }}" style="width:90px;padding:8px 10px;border-radius:10px;border:1px solid #ddd">
+  <button class="btn" type="submit">Apply</button>
+  <a class="btn" href="{{ url_for('admin_logs') }}" style="text-decoration:none">Reset</a>
+</form>
+
+<ul style="list-style:none;padding-left:0;margin:0">
+{% for r in rows %}
+  <li style="padding:10px;border:1px solid #eee;border-radius:12px;margin-bottom:8px">
+    <b>#{{ r.id }}</b> — {{ r.date }} • {{ r.day_name }} • <b>{{ r.exercise }}</b>
+    <div style="opacity:.8;font-size:13px">
+      user_id={{ r.user_id }} • {{ r.program }} • set {{ r.sets }}: {{ r.reps }} reps @ {{ r.weight_kg }}kg
+      {% if r.rpe %} (RPE {{ r.rpe }}){% endif %}
+      {% if r.notes %} • notes: {{ r.notes }}{% endif %}
+    </div>
+  </li>
+{% else %}
+  <li style="padding:10px;opacity:.7">No logs found.</li>
+{% endfor %}
+</ul>
+
+<p style="margin-top:14px"><a href="{{ url_for('admin_index') }}">← Admin</a></p>
+{% endblock %}
