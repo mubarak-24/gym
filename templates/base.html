@@ -4,110 +4,77 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>{% block title %}GymLogger{% endblock %}</title>
+
+  <!-- Tailwind (TW) via CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Inter font -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Optional: legacy stylesheet (remove if Tailwind-only) -->
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+
+  <!-- ✅ PWA Manifest -->
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#111111">
+
+  <!-- ✅ iOS support -->
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icons/icon-192.png') }}">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
   <style>
-    :root{
-      --bg:#b8aa98; --card:#212728; --card-2:#2a3031; --text:#f4f6f7; --muted:#9fa9ad;
-      --line:#3b4244; --accent:#6a7cff; --pill:#f3f0ff;
-      --shadow:0 24px 48px rgba(0,0,0,.35); --inset:inset 0 1px 0 rgba(255,255,255,.03);
-      --radius:18px;
-    }
-
-    html,body{height:100%}
-    body{
-      margin:0; color:var(--text);
-      background:
-        radial-gradient(1200px 800px at 30% -10%, rgba(255,255,255,.12), transparent 60%),
-        linear-gradient(#bfb2a2, var(--bg));
-      font-family: system-ui,-apple-system,Segoe UI,Roboto,Arial,"Noto Sans",sans-serif;
-    }
-
-    /* ---------- Layout wrappers ---------- */
-    /* Default: centered content with comfy side gutters */
-    .container{
-      width:min(1100px, 100% - clamp(16px, 6vw, 96px));
-      margin:16px auto 32px;
-    }
-    /* For pages that need to span the page width (dashboard/logs) */
-    .fullbleed{
-      width:100vw;
-      margin-left:calc(50% - 50vw);
-      margin-right:calc(50% - 50vw);
-      padding:16px clamp(16px, 5vw, 96px) 32px;
-    }
-
-    /* ---------- Navbar ---------- */
-    nav{
-      display:flex; gap:10px; align-items:center; flex-wrap:wrap;
-      padding:10px 12px; border-radius:14px;
-      background:rgba(33,39,40,.7); backdrop-filter:blur(8px);
-      border:1px solid #2f3536; box-shadow:var(--inset);
-    }
-    nav a{
-      text-decoration:none; color:var(--text);
-      padding:6px 12px; border-radius:999px;
-      border:1px solid transparent; transition:.18s ease; background:#2a3031;
-    }
-    nav a:hover{ filter:brightness(1.06) }
-    nav a.active{ border-color:#8f95ff }
-    .nav-right{ margin-left:auto; display:flex; gap:10px; align-items:center }
-    .pill{ background:var(--pill); color:#3a2e66; border-color:#ddd7ff !important }
-    .muted{ opacity:.75 }
-
-    /* ---------- Cards / buttons / inputs ---------- */
-    .card{ background:var(--card); border-radius:var(--radius);
-      box-shadow:var(--shadow),var(--inset); border:1px solid #2f3536; color:var(--text) }
-    .card--sub{ background:var(--card-2); border:1px solid var(--line) }
-    .btn{ appearance:none; border:0; cursor:pointer; background:#0ca16d; color:#fff;
-      padding:10px 14px; border-radius:12px; font-weight:600; transition:.2s ease;
-      box-shadow:0 6px 14px rgba(0,0,0,.25) }
-    .btn:hover{ filter:brightness(1.06) }
-    .btn:disabled{ opacity:.6; cursor:default }
-    .btn--ghost{ background:#2a3031; color:var(--text); border:1px solid var(--line) }
-    label{ display:block; font-size:14px; margin:6px 2px 6px }
-    input[type="text"],input[type="password"],input[type="email"],input[type="number"],input[type="date"]{
-      width:100%; padding:12px 14px; border-radius:12px; outline:none;
-      border:1px solid var(--line); background:#2d3435; color:var(--text);
-      transition:border-color .18s, box-shadow .18s;
-    }
-    input:focus{ border-color:#8f95ff; box-shadow:0 0 0 3px #8f95ff30 }
-
-    /* ---------- Flash messages ---------- */
-    .flash{ padding-left:0; list-style:none; margin:12px 0 16px }
-    .flash li{ padding:10px 12px; border-radius:12px; margin-bottom:8px;
-      border:1px solid #2f3536; background:#272d2e }
-    .flash li.info{ color:#d9f3ff; background:#17303a; border-color:#1e3c4a }
-    .flash li.error{ color:#ffd9d9; background:#3a1717; border-color:#4a1e1e }
-
-    /* ---------- Utilities ---------- */
-    main{ margin-top:14px }
-    .panel{ padding:26px 22px 28px; border-radius:var(--radius);
-      background:var(--card); border:1px solid #2f3536; box-shadow:var(--shadow),var(--inset) }
-    .grid-cards{ display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px }
-
-    @media (max-width:600px){
-      .container{ width:min(100% - 14px, 100%) }
-      nav{ gap:8px }
-    }
+    * { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
   </style>
 </head>
-<body>
-  <!-- Choose layout per-page by overriding the "wrapper" block -->
-  <div class="{% block wrapper %}container{% endblock %}">
+<body class="bg-gray-100 text-gray-900 min-h-screen">
+  <div class="max-w-6xl mx-auto px-4 py-6">
     <!-- Navbar -->
-    <nav>
-      <a href="{{ url_for('home') }}" data-nav="home">Dashboard</a>
-      <a href="{{ url_for('workouts') }}" data-nav="workouts">Workouts</a>
-      <a href="{{ url_for('logs_page') }}" data-nav="logs">Logs</a>
+    <nav class="flex items-center gap-2 sm:gap-3 rounded-2xl bg-white/80 backdrop-blur-md border border-gray-200 shadow-sm px-3 sm:px-4 py-2.5 mb-6">
+      <a href="{{ url_for('home') }}"
+         data-nav="home"
+         class="px-3 py-1.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+         Dashboard
+      </a>
 
-      <div class="nav-right">
+      <a href="{{ url_for('workouts') }}"
+         data-nav="workouts"
+         class="px-3 py-1.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+         Workouts
+      </a>
+
+      <a href="{{ url_for('routines_page') }}"
+         data-nav="routines"
+         class="px-3 py-1.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+         Routines
+      </a>
+
+      <a href="{{ url_for('logs_page') }}"
+         data-nav="logs"
+         class="px-3 py-1.5 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-100 transition">
+         Logs
+      </a>
+
+      <div class="ml-auto flex items-center gap-2 sm:gap-3">
         {% if session.get('uid') %}
-          <span class="muted">Signed in as {{ session.get('username') }}</span>
-          <a class="btn btn--ghost" href="{{ url_for('logout') }}">Logout</a>
+          <span class="text-gray-500 text-sm hidden sm:inline">Signed in as {{ session.get('username') }}</span>
+          <a href="{{ url_for('logout') }}"
+             class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition">
+             Logout
+          </a>
         {% else %}
-          <a href="{{ url_for('login') }}">Login</a>
-          <a href="{{ url_for('signup') }}">Sign up</a>
-          <a href="{{ url_for('logs_page') }}" class="pill">View my logs</a>
+          <a href="{{ url_for('login') }}"
+             class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition">
+             Login
+          </a>
+          <a href="{{ url_for('signup') }}"
+             class="px-3 py-1.5 rounded-lg border border-gray-300 text-gray-700 text-sm font-medium hover:bg-gray-50 transition">
+             Sign up
+          </a>
+          <a href="{{ url_for('logs_page') }}"
+             class="px-3 py-1.5 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200 text-sm font-medium">
+             View my logs
+          </a>
         {% endif %}
       </div>
     </nav>
@@ -115,16 +82,21 @@
     <!-- Flash Messages -->
     {% with msgs = get_flashed_messages(with_categories=true) %}
       {% if msgs %}
-        <ul class="flash">
+        <ul class="space-y-2 mb-5">
           {% for cat, msg in msgs %}
-            <li class="{{ cat }}">{{ msg }}</li>
+            <li class="px-3 py-2 rounded-lg text-sm border
+              {% if cat == 'info' %} bg-blue-50 text-blue-900 border-blue-200
+              {% elif cat == 'error' %} bg-red-50 text-red-900 border-red-200
+              {% else %} bg-gray-50 text-gray-900 border-gray-200 {% endif %}">
+              {{ msg }}
+            </li>
           {% endfor %}
         </ul>
       {% endif %}
     {% endwith %}
 
     <!-- Page Content -->
-    <main>
+    <main class="mt-4">
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -136,11 +108,14 @@
         const here = location.pathname.replace(/\/+$/,'/');
         document.querySelectorAll('nav a[data-nav]').forEach(a => {
           const p = new URL(a.href).pathname.replace(/\/+$/,'/');
-          if (p === here) a.classList.add('active');
+          if (p === here) {
+            a.classList.add('bg-gray-900','text-white');
+          }
         });
       } catch (e) {}
     })();
   </script>
+
   {% block scripts %}{% endblock %}
 </body>
 </html>

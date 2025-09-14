@@ -1,4 +1,27 @@
 # Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual env
+.venv/
+env/
+venv/
+
+# OS
+.DS_Store
+
+# Flask cache
+instance/
+*.sqlite3
+
+# Node (if Tailwind local build)
+node_modules/
+dist/
+
+# Secrets
+.env# Python
 venv/
 __pycache__/
 *.pyc

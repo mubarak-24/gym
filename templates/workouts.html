@@ -2,231 +2,400 @@
 {% block title %}Workouts{% endblock %}
 
 {% block content %}
-<style>
-  .hidden { display:none }
-  .row { display:flex; gap:12px; flex-wrap:wrap }
-  .actions { display:flex; gap:8px; flex-wrap:wrap }
-  .small { font-size:.9rem; opacity:.75 }
-  .topbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px }
-  .pill { text-decoration:none; padding:6px 10px; border-radius:999px; border:1px solid #e5e5e5 }
-  fieldset { margin: 8px 0 14px; border-radius: 10px; padding: 10px 12px }
-  label { display:block; margin: 6px 0 4px }
-  input, select, button { padding: 8px 10px; border-radius:10px; border:1px solid #ddd }
-  .list-item { padding:8px 10px; border:1px solid #eee; border-radius:10px; margin-bottom:8px }
-</style>
+<div class="max-w-4xl mx-auto space-y-6">
 
-<div class="topbar">
-  <h1>Workout</h1>
-  <a href="{{ url_for('home') }}" class="pill">← Dashboard</a>
+  <!-- Page header with right-side button -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">Workouts</h1>
+      <p class="text-gray-500 mt-1">Follow a plan or use your own routines, log one exercise at a time.</p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('routines_page') }}"
+         class="px-4 py-2 rounded-full text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
+        Manage Routines
+      </a>
+      <a href="{{ url_for('home') }}"
+         class="px-4 py-2 rounded-full text-sm font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 transition">
+        ← Dashboard
+      </a>
+    </div>
+  </div>
+
+  <!-- Status line -->
+  <div id="msg" class="text-sm min-h-[20px]"></div>
+
+  <!-- Step 0: Plan source -->
+  <section id="stepSource" class="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+    <h2 class="text-lg font-semibold">Plan Source</h2>
+
+    <div class="flex flex-wrap gap-6">
+      <label class="flex items-center gap-2 text-gray-800">
+        <input type="radio" name="src" value="builtin" checked class="size-4">
+        <span>Use built-in 4-day plan</span>
+      </label>
+      <label class="flex items-center gap-2 text-gray-800">
+        <input type="radio" name="src" value="mine" class="size-4">
+        <span>Use my routines (local)</span>
+      </label>
+    </div>
+
+    <!-- Built-in controls -->
+    <div id="builtinWrap" class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="daySelect" class="block text-sm font-medium text-gray-700 mb-1">Which day are you on?</label>
+        <select id="daySelect"
+                class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+          <option value="" selected disabled>— Select a day —</option>
+          <option value="upper_a">Day 1 — Upper A</option>
+          <option value="lower_a">Day 2 — Lower A</option>
+          <option value="upper_b">Day 4 — Upper B</option>
+          <option value="lower_b">Day 5 — Lower B</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- My routines (localStorage) -->
+    <div id="mineWrap" class="hidden space-y-4">
+      <div class="rounded-xl border border-dashed border-gray-300 bg-gray-50 text-gray-700 p-3 text-sm">
+        These are loaded from your device (localStorage key <code class="font-mono">gl_my_programs</code>).
+        If you don’t have any yet, add routines first.
+      </div>
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        <div>
+          <label for="progSelect" class="block text-sm font-medium text-gray-700 mb-1">Program</label>
+          <select id="progSelect"
+                  class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="" disabled selected>Loading…</option>
+          </select>
+        </div>
+
+        <div>
+          <label for="myDaySelect" class="block text-sm font-medium text-gray-700 mb-1">Day</label>
+          <select id="myDaySelect" disabled
+                  class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+            <option value="" disabled selected>—</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Session notes (optional)</label>
+      <input id="notes" placeholder="How it felt, pains, sleep, etc."
+             class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+    </div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button id="startBtn"
+              class="px-4 py-2 bg-green-600 text-white font-semibold rounded-xl shadow-sm hover:shadow transition">
+        Start Session
+      </button>
+      <button id="reloadMine"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium hover:shadow-sm transition">
+        Reload my routines
+      </button>
+      <p class="text-sm text-gray-500">You’ll be asked one exercise at a time.</p>
+    </div>
+  </section>
+
+  <!-- Step 1: Exercise -->
+  <section id="stepExercise" class="hidden bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+    <h2 id="exTitle" class="text-lg font-semibold">Exercise</h2>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="set1Reps" class="block text-sm font-medium text-gray-700 mb-1">Set 1 — Reps</label>
+        <input id="set1Reps" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g., 6–9"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+      <div>
+        <label for="set1Weight" class="block text-sm font-medium text-gray-700 mb-1">Set 1 — Weight (kg)</label>
+        <input id="set1Weight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="kg"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+    </div>
+
+    <div id="set2" class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="set2Reps" class="block text-sm font-medium text-gray-700 mb-1">Set 2 — Reps</label>
+        <input id="set2Reps" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g., 6–9"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+      <div>
+        <label for="set2Weight" class="block text-sm font-medium text-gray-700 mb-1">Set 2 — Weight (kg)</label>
+        <input id="set2Weight" type="number" inputmode="decimal" min="0" step="0.1" placeholder="kg"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+    </div>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="rpe" class="block text-sm font-medium text-gray-700 mb-1">RPE (optional)</label>
+        <input id="rpe" type="number" min="1" max="10" step="1" placeholder="8"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+      <div>
+        <label for="exNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes (optional)</label>
+        <input id="exNotes" placeholder="e.g., last reps slow"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="prevBtn"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium hover:shadow-sm transition">
+        ← Back
+      </button>
+      <button id="nextBtn"
+              class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:shadow transition">
+        Next →
+      </button>
+    </div>
+
+    <p id="progressNote" class="text-sm text-gray-500"></p>
+  </section>
+
+  <!-- Step 2: Finish -->
+  <section id="stepFinish" class="hidden bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+    <h2 class="text-lg font-semibold">Finish — Duration & Cardio</h2>
+
+    <div class="grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="duration" class="block text-sm font-medium text-gray-700 mb-1">Workout duration (min)</label>
+        <input id="duration" type="number" inputmode="numeric" min="1" step="1" placeholder="e.g., 70"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+    </div>
+
+    <label class="inline-flex items-center gap-2 text-gray-800">
+      <input id="didCardio" type="checkbox" class="size-4">
+      <span>I did cardio</span>
+    </label>
+
+    <div id="cardioWrap" class="hidden grid sm:grid-cols-2 gap-4">
+      <div>
+        <label for="cardioType" class="block text-sm font-medium text-gray-700 mb-1">Cardio type (optional)</label>
+        <input id="cardioType" placeholder="e.g., treadmill, bike"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+      <div>
+        <label for="cardioMin" class="block text-sm font-medium text-gray-700 mb-1">Cardio duration (min)</label>
+        <input id="cardioMin" type="number" inputmode="numeric" min="1" step="1" placeholder="20"
+               class="w-full rounded-xl border border-gray-300 bg-white px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button id="backToExercises"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium hover:shadow-sm transition">
+        ← Back
+      </button>
+      <button id="toSummary"
+              class="px-4 py-2 bg-indigo-600 text-white font-semibold rounded-xl shadow-sm hover:shadow transition">
+        Next: Summary →
+      </button>
+    </div>
+  </section>
+
+  <!-- Step 3: Summary -->
+  <section id="stepSummary" class="hidden bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-5">
+    <h2 class="text-lg font-semibold">Summary</h2>
+    <div id="summaryList" class="space-y-2"></div>
+
+    <div class="flex flex-wrap items-center gap-3">
+      <button id="saveServer"
+              class="px-4 py-2 bg-green-600 text-white font-semibold rounded-xl shadow-sm hover:shadow transition">
+        Save to Server (SQLite)
+      </button>
+      <button id="exportCsv"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium hover:shadow-sm transition">
+        Export CSV
+      </button>
+      <button id="newSession"
+              class="px-4 py-2 bg-white border border-gray-200 rounded-xl text-gray-800 font-medium hover:shadow-sm transition">
+        New session
+      </button>
+    </div>
+
+    <p class="text-sm text-gray-500">Saved sets trigger PR notifications if you beat a previous best.</p>
+  </section>
+
 </div>
-
-<div id="msg" class="small" style="min-height:20px;margin-bottom:8px;"></div>
-
-<!-- Step 1 -->
-<fieldset id="stepDay">
-  <legend>Choose Day</legend>
-
-  <label for="daySelect">Which day are you on?</label>
-  <select id="daySelect" required>
-    <option value="" selected disabled>— Select a day —</option>
-    <option>Day 1 - Upper A</option>
-    <option>Day 2 - Lower A</option>
-    <option>Day 4 - Upper B</option>
-    <option>Day 5 - Lower B</option>
-  </select>
-
-  <label for="notes">Notes (optional)</label>
-  <input id="notes" placeholder="How it felt, pains, sleep, etc.">
-
-  <div class="actions" style="margin-top:10px">
-    <button id="startBtn" type="button">Start Session</button>
-  </div>
-  <p class="small">You’ll be asked one exercise at a time.</p>
-</fieldset>
-
-<!-- Step 2 -->
-<fieldset id="stepExercise" class="hidden">
-  <legend id="exTitle">Exercise</legend>
-
-  <div id="set1" class="row">
-    <div>
-      <label for="set1Reps">Set 1 — Reps</label>
-      <input id="set1Reps" type="number" inputmode="numeric" placeholder="e.g., 6–9" min="1" step="1" required>
-    </div>
-    <div>
-      <label for="set1Weight">Set 1 — Weight (kg)</label>
-      <input id="set1Weight" type="number" inputmode="decimal" placeholder="kg" min="0" step="0.1" required>
-    </div>
-  </div>
-
-  <div id="set2" class="row" style="margin-top:8px">
-    <div>
-      <label for="set2Reps">Set 2 — Reps</label>
-      <input id="set2Reps" type="number" inputmode="numeric" placeholder="e.g., 6–9" min="1" step="1">
-    </div>
-    <div>
-      <label for="set2Weight">Set 2 — Weight (kg)</label>
-      <input id="set2Weight" type="number" inputmode="decimal" placeholder="kg" min="0" step="0.1">
-    </div>
-  </div>
-
-  <div class="row" style="margin-top:8px">
-    <div>
-      <label for="rpe">RPE (optional)</label>
-      <input id="rpe" type="number" min="1" max="10" inputmode="numeric" placeholder="8" step="1">
-    </div>
-    <div>
-      <label for="exNotes">Notes (optional)</label>
-      <input id="exNotes" placeholder="e.g., last reps slow">
-    </div>
-  </div>
-
-  <div class="actions" style="margin-top:10px">
-    <button id="prevBtn" type="button">← Back</button>
-    <button id="nextBtn" type="button">Next →</button>
-  </div>
-  <p class="small" id="progressNote"></p>
-</fieldset>
-
-<!-- Step 3 -->
-<fieldset id="stepFinish" class="hidden">
-  <legend>Finish — Duration & Cardio</legend>
-
-  <label for="duration">How long was your workout? (minutes)</label>
-  <input id="duration" type="number" inputmode="numeric" placeholder="e.g., 70" min="1" step="1" required>
-
-  <div style="margin-top:12px">
-    <label><input id="didCardio" type="checkbox"> I did cardio</label>
-  </div>
-
-  <div id="cardioWrap" class="row hidden" style="margin-top:8px">
-    <div>
-      <label for="cardioType">Cardio type (optional)</label>
-      <input id="cardioType" placeholder="e.g., treadmill, bike">
-    </div>
-    <div>
-      <label for="cardioMin">Cardio duration (min)</label>
-      <input id="cardioMin" type="number" inputmode="numeric" placeholder="20" min="1" step="1">
-    </div>
-  </div>
-
-  <div class="actions" style="margin-top:10px">
-    <button id="backToExercises" type="button">← Back</button>
-    <button id="toSummary" type="button">Next: Summary →</button>
-  </div>
-</fieldset>
-
-<!-- Step 4 -->
-<fieldset id="stepSummary" class="hidden">
-  <legend>Summary</legend>
-  <div id="summaryList"></div>
-  <div class="actions" style="margin-top:10px">
-    <button id="saveServer" type="button">Save to Server (SQLite)</button>
-    <button id="exportCsv" type="button">Export CSV</button>
-    <button id="exportGoogle" type="button">Export to Google Sheets</button>
-  </div>
-</fieldset>
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', () => {
-  // ---- plans ----
-  const DAY_PLANS = {
-    "Day 1 - Upper A": [
-      {exercise:"Flat chest press", sets:2},
-      {exercise:"Shoulder press", sets:2},
-      {exercise:"Upper back row", sets:2},
-      {exercise:"Lat pulldown", sets:2},
-      {exercise:"Tricep push down", sets:2},
-      {exercise:"Bicep curl", sets:2}
-    ],
-    "Day 2 - Lower A": [
+  // ---------------- Built-in 4-day plan ----------------
+  const BUILTIN_PLANS = {
+    upper_a: { title: "Day 1 - Upper A", exercises: [
+      {exercise:"Flat chest press",   sets:2},
+      {exercise:"Shoulder press",     sets:2},
+      {exercise:"Upper back row",     sets:2},
+      {exercise:"Lat pulldown",       sets:2},
+      {exercise:"Tricep push down",   sets:2},
+      {exercise:"Bicep curl",         sets:2},
+    ]},
+    lower_a: { title: "Day 2 - Lower A", exercises: [
       {exercise:"Squat pattern / Leg press", sets:2},
-      {exercise:"Seated hammy", sets:2},
-      {exercise:"Leg extensions", sets:1},
-      {exercise:"Adductors", sets:2},
-      {exercise:"Calves", sets:2},
-      {exercise:"Abs", sets:2}
-    ],
-    "Day 4 - Upper B": [
-      {exercise:"Upper back row", sets:2},
-      {exercise:"Lat biased row", sets:2},
-      {exercise:"Incline chest press", sets:2},
-      {exercise:"Lateral raise", sets:2},
-      {exercise:"Tricep compound (dips, JM)", sets:2},
-      {exercise:"Bicep curl", sets:2}
-    ],
-    "Day 5 - Lower B": [
+      {exercise:"Seated hammy",              sets:2},
+      {exercise:"Leg extensions",            sets:1},
+      {exercise:"Adductors",                 sets:2},
+      {exercise:"Calves",                    sets:2},
+      {exercise:"Abs",                       sets:2},
+    ]},
+    upper_b: { title: "Day 4 - Upper B", exercises: [
+      {exercise:"Upper back row",            sets:2},
+      {exercise:"Lat biased row",            sets:2},
+      {exercise:"Incline chest press",       sets:2},
+      {exercise:"Lateral raise",             sets:2},
+      {exercise:"Tricep compound (dips, JM)",sets:2},
+      {exercise:"Bicep curl",                sets:2},
+    ]},
+    lower_b: { title: "Day 5 - Lower B", exercises: [
       {exercise:"Hip hinge (RDL , hyperextensions)", sets:2},
-      {exercise:"Squat pattern / Leg press", sets:1},
-      {exercise:"Leg extension", sets:1},
-      {exercise:"Lying hammy", sets:1},
-      {exercise:"Adductors", sets:2},
-      {exercise:"Calves", sets:2},
-      {exercise:"Abs", sets:2}
-    ]
+      {exercise:"Squat pattern / Leg press",         sets:1},
+      {exercise:"Leg extension",                     sets:1},
+      {exercise:"Lying hammy",                       sets:1},
+      {exercise:"Adductors",                         sets:2},
+      {exercise:"Calves",                            sets:2},
+      {exercise:"Abs",                               sets:2},
+    ]}
   };
 
-  // ---- helpers/state ----
+  // Helpers / state
   const el = id => document.getElementById(id);
   const msg = (t, kind="info") => {
     const m = el("msg"); if(!m) return;
-    m.style.color = kind==="error" ? "crimson" : "#111";
+    m.classList.remove("text-red-600","text-green-700","text-gray-700");
+    if(kind==="error") m.classList.add("text-red-600");
+    else if(kind==="good") m.classList.add("text-green-700");
+    else m.classList.add("text-gray-700");
     m.textContent = t || "";
   };
   const uid = () => 's-' + Math.random().toString(36).slice(2,10);
-  const clampNum = (v,min=0) => {
-    const n = Number(v);
-    return Number.isFinite(n) ? Math.max(min, n) : 0;
-  };
-  function todayParts(){
+  const clampNum = (v,min=0) => { const n = Number(v); return Number.isFinite(n) ? Math.max(min, n) : 0; };
+  const todayParts = () => {
     const d = new Date();
-    return {
-      ts: d.toISOString().slice(0,19).replace("T"," "),
-      date: d.toISOString().slice(0,10),
-      day: d.toLocaleDateString(undefined,{ weekday:"long" })
+    return { ts: d.toISOString().slice(0,19).replace("T"," "), date: d.toISOString().slice(0,10), day: d.toLocaleDateString(undefined,{ weekday:"long" }) };
+  };
+  const volume = (sets,reps,kg) => (clampNum(sets,0))*(clampNum(reps,0))*(clampNum(kg,0));
+
+  const state = { source:"builtin", sessionId:null, program:"", dayCode:"", durationMin:null, notes:"", plan:[], i:0, rows:[] };
+
+  // Source toggle
+  const srcRadios = Array.from(document.querySelectorAll('input[name="src"]'));
+  const builtinWrap = el("builtinWrap");
+  const mineWrap = el("mineWrap");
+  const daySelect = el("daySelect");
+  const progSelect = el("progSelect");
+  const myDaySelect = el("myDaySelect");
+
+  srcRadios.forEach(r => r.addEventListener("change", () => {
+    state.source = document.querySelector('input[name="src"]:checked').value;
+    if(state.source === "builtin"){ builtinWrap.classList.remove("hidden"); mineWrap.classList.add("hidden"); }
+    else { builtinWrap.classList.add("hidden"); mineWrap.classList.remove("hidden"); loadMyRoutines(); }
+  }));
+
+  // Load my routines from localStorage (optional server merge)
+  function lsPrograms(){ try { return JSON.parse(localStorage.getItem('gl_my_programs') || '[]'); } catch { return []; } }
+  async function loadMyRoutines(){
+    let programs = lsPrograms();
+    try {
+      let res = await fetch('/api/programs', { headers:{'Accept':'application/json'} });
+      if (!res.ok) res = await fetch('/api/routines', { headers:{'Accept':'application/json'} });
+      if (res.ok) {
+        const data = await res.json();
+        const server = (data.programs || []).filter(p => p && p.days);
+        server.forEach(sp => {
+          if (!programs.some(lp => (lp.name||'').toLowerCase() === (sp.name||'').toLowerCase())) programs.push(sp);
+        });
+      }
+    } catch (_) {}
+
+    if (!programs.length) {
+      progSelect.innerHTML = `<option value="" disabled selected>No routines yet</option>`;
+      myDaySelect.innerHTML = `<option value="" disabled selected>—</option>`;
+      myDaySelect.disabled = true;
+      return;
+    }
+
+    progSelect.innerHTML = `<option value="" disabled selected>— Select program —</option>`;
+    programs.forEach((p, idx) => {
+      const o = document.createElement('option');
+      o.value = String(p.id ?? `local-${idx}`);
+      o.textContent = p.name || `Program ${idx+1}`;
+      o.dataset.program = JSON.stringify(p);
+      progSelect.appendChild(o);
+    });
+
+    myDaySelect.innerHTML = `<option value="" disabled selected>— Select day —</option>`;
+    myDaySelect.disabled = true;
+
+    progSelect.onchange = () => {
+      const opt = progSelect.options[progSelect.selectedIndex];
+      const program = opt?.dataset?.program ? JSON.parse(opt.dataset.program) : null;
+      myDaySelect.innerHTML = `<option value="" disabled selected>— Select day —</option>`;
+      (program?.days || []).forEach(d => {
+        const o = document.createElement('option');
+        o.value = d.code || String(d.id || '');
+        o.textContent = d.title || d.code || 'Day';
+        o.dataset.day = JSON.stringify(d);
+        myDaySelect.appendChild(o);
+      });
+      myDaySelect.disabled = !(program && (program.days||[]).length);
     };
   }
-  function volume(sets,reps,kg){ return (clampNum(sets,0))*(clampNum(reps,0))*(clampNum(kg,0)); }
+  el('reloadMine').onclick = loadMyRoutines;
 
-  const state = { sessionId:null, dayName:null, program:"", durationMin:null, notes:"", plan:[], i:0, rows:[] };
+  // Step nav
+  const stepSource = el("stepSource");
+  const stepExercise = el("stepExercise");
+  const stepFinish = el("stepFinish");
+  const stepSummary = el("stepSummary");
 
-  // ensure dropdown populated if needed
-  const daySelect = el("daySelect");
-  if (daySelect && daySelect.options.length <= 1) {
-    Object.keys(DAY_PLANS).forEach(name => {
-      const o = document.createElement("option");
-      o.value = name; o.textContent = name;
-      daySelect.appendChild(o);
-    });
-  }
+  el("didCardio").addEventListener("change", (e)=> el("cardioWrap").classList.toggle("hidden", !e.target.checked));
 
-  // cardio show/hide
-  el("didCardio").addEventListener("change", (e)=>
-    el("cardioWrap").classList.toggle("hidden", !e.target.checked)
-  );
-
-  // ---- start session ----
+  // Start
   el("startBtn").onclick = () => {
-    if (!daySelect.value) { msg("Pick a day first.", "error"); daySelect.focus(); return; }
-    state.dayName = daySelect.value;
-    state.plan = DAY_PLANS[state.dayName] || [];
-    if (state.plan.length === 0) { msg("This day has no plan.", "error"); return; }
-
-    if(state.dayName.includes("Upper")) state.program = state.dayName.includes("A") ? "Upper A" : "Upper B";
-    else if(state.dayName.includes("Lower")) state.program = state.dayName.includes("A") ? "Lower A" : "Lower B";
-    else state.program = "General";
-
     state.notes = el("notes").value.trim();
-    state.sessionId = uid(); state.i = 0; state.rows = [];
-    msg("");
-    el("stepDay").classList.add("hidden");
-    el("stepExercise").classList.remove("hidden");
+    state.sessionId = uid();
+    state.rows = []; state.i = 0;
+
+    if(state.source === "builtin"){
+      const code = daySelect.value;
+      if(!code){ msg("Pick a day first.", "error"); daySelect.focus(); return; }
+      const planObj = BUILTIN_PLANS[code];
+      if(!planObj){ msg("Invalid day.", "error"); return; }
+      state.dayCode = code;
+      state.program = (planObj.title.includes("Upper") || planObj.title.includes("Lower"))
+        ? planObj.title.split(" - ")[1] : planObj.title;
+      state.plan = planObj.exercises.slice();
+    } else {
+      const pOpt = progSelect.options[progSelect.selectedIndex];
+      const dOpt = myDaySelect.options[myDaySelect.selectedIndex];
+      if(!pOpt){ msg("Pick a program.", "error"); progSelect.focus(); return; }
+      if(!dOpt){ msg("Pick a day.", "error"); myDaySelect.focus(); return; }
+
+      const day = dOpt.dataset.day ? JSON.parse(dOpt.dataset.day) : null;
+      const exs = (day?.exercises || []).map(e => ({ exercise: e.exercise, sets: Number(e.sets||1) }));
+      if(!exs.length){ msg("This day has no exercises yet.", "error"); return; }
+
+      state.dayCode = day.code || String(day.id || "");
+      state.program = day.title || day.code || "Session";
+      state.plan = exs;
+    }
+
+    stepSource.classList.add("hidden");
+    stepExercise.classList.remove("hidden");
     renderExercise();
+    msg("");
   };
 
-  // ---- render exercise ----
+  // Exercise step
   function clearSet2Inputs(){ el("set2Reps").value = ""; el("set2Weight").value = ""; }
   function renderExercise(){
     const item = state.plan[state.i]; if(!item){ return showFinishStep(); }
@@ -234,15 +403,11 @@ document.addEventListener('DOMContentLoaded', () => {
     el("progressNote").textContent = `Exercise ${state.i+1} of ${state.plan.length} • ${item.sets} set(s)`;
     el("set1Reps").value=""; el("set1Weight").value="";
     clearSet2Inputs(); el("rpe").value=""; el("exNotes").value="";
-
-    if(item.sets >= 2){ el("set2").classList.remove("hidden"); }
-    else { el("set2").classList.add("hidden"); clearSet2Inputs(); }
+    if(item.sets >= 2){ el("set2").classList.remove("hidden"); } else { el("set2").classList.add("hidden"); clearSet2Inputs(); }
   }
 
-  // ---- next / prev ----
   el("nextBtn").onclick = () => {
     const item = state.plan[state.i]; if(!item) return;
-
     const s1r = clampNum(el("set1Reps").value, 1);
     const s1w = clampNum(el("set1Weight").value, 0);
     const s2r = clampNum(el("set2Reps").value, 1);
@@ -255,22 +420,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { ts, date, day } = todayParts();
 
-    // set 1
     state.rows.push({
-      timestamp: ts, date, day_name: day, program: state.program,
+      timestamp: ts, date, day_name: day, program: state.program, day_code: state.dayCode,
       session_id: state.sessionId, exercise: item.exercise, sets: 1,
-      reps: s1r, weight_kg: s1w, rpe,
-      volume_kg: volume(1,s1r,s1w),
+      reps: s1r, weight_kg: s1w, rpe, volume_kg: volume(1,s1r,s1w),
       duration_min: "", notes: state.notes ? `${state.notes} ${exNotes}`.trim() : exNotes, source: "pwa"
     });
 
-    // set 2 if prescribed
     if(item.sets >= 2){
       state.rows.push({
-        timestamp: ts, date, day_name: day, program: state.program,
+        timestamp: ts, date, day_name: day, program: state.program, day_code: state.dayCode,
         session_id: state.sessionId, exercise: item.exercise, sets: 2,
-        reps: s2r, weight_kg: s2w, rpe,
-        volume_kg: volume(1,s2r,s2w),
+        reps: s2r, weight_kg: s2w, rpe, volume_kg: volume(1,s2r,s2w),
         duration_min: "", notes: state.notes ? `${state.notes} ${exNotes}`.trim() : exNotes, source: "pwa"
       });
     }
@@ -281,9 +442,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   el("prevBtn").onclick = () => {
     if(state.i === 0){
-      el("stepExercise").classList.add("hidden");
-      el("stepDay").classList.remove("hidden");
-      state.sessionId=null; state.plan=[]; state.rows=[]; state.i=0; state.program=""; msg("");
+      stepExercise.classList.add("hidden");
+      stepSource.classList.remove("hidden");
+      state.sessionId=null; state.plan=[]; state.rows=[]; state.i=0; state.program=""; state.dayCode=""; msg("");
       return;
     }
     const prevSets = state.plan[state.i-1].sets || 1;
@@ -291,70 +452,54 @@ document.addEventListener('DOMContentLoaded', () => {
     state.i--; renderExercise();
   };
 
-  // ---- finish & summary ----
-  function showFinishStep(){
-    el("stepExercise").classList.add("hidden");
-    el("stepFinish").classList.remove("hidden");
-  }
-
-  el("backToExercises").onclick = () => {
-    el("stepFinish").classList.add("hidden");
-    el("stepExercise").classList.remove("hidden");
-  };
+  // Finish & summary
+  function showFinishStep(){ stepExercise.classList.add("hidden"); stepFinish.classList.remove("hidden"); }
+  el("backToExercises").onclick = () => { stepFinish.classList.add("hidden"); stepExercise.classList.remove("hidden"); };
 
   el("toSummary").onclick = () => {
     const dur = clampNum(el("duration").value, 1);
     if(!dur){ msg("Enter workout duration in minutes.", "error"); return; }
     state.durationMin = dur;
-
-    // apply duration
     state.rows = state.rows.map(r => ({ ...r, duration_min: state.durationMin }));
 
-    // cardio (only one row max)
     const did = el("didCardio").checked;
     if(did){
       const cmin = clampNum(el("cardioMin").value, 1);
       const ctype = (el("cardioType").value || "").trim();
       if(cmin){
         const { ts, date, day } = todayParts();
-        // ensure only one cardio row for the session
         state.rows = state.rows.filter(r => !/^Cardio/.test(r.exercise));
         state.rows.push({
-          timestamp: ts, date, day_name: day, program: state.program,
+          timestamp: ts, date, day_name: day, program: state.program, day_code: state.dayCode,
           session_id: state.sessionId, exercise: ctype ? `Cardio (${ctype})` : "Cardio",
           sets: 1, reps: cmin, weight_kg: 0, rpe: "",
-          volume_kg: 0, duration_min: state.durationMin,
-          notes: state.notes, source: "pwa"
+          volume_kg: 0, duration_min: state.durationMin, notes: state.notes, source: "pwa"
         });
       }
     }
-
-    showSummary();
-    msg("");
+    showSummary(); msg("");
   };
 
   function showSummary(){
-    el("stepFinish").classList.add("hidden");
-    el("stepSummary").classList.remove("hidden");
+    stepFinish.classList.add("hidden");
+    stepSummary.classList.remove("hidden");
     const box = el("summaryList");
     box.innerHTML = "";
     state.rows.forEach(r=>{
       const setLabel = (r.sets===1 || String(r.exercise).startsWith("Cardio")) ? "" : ("Set " + r.sets + ": ");
-      const mainVal = String(r.exercise).startsWith("Cardio")
-        ? `${r.reps} min`
-        : `${r.reps} reps @ ${Number(r.weight_kg || 0).toFixed(1)}kg`;
-      const rpeTxt = r.rpe ? `(RPE ${r.rpe})` : "";
-      const meta = `${r.program} • duration ${r.duration_min} min • ${r.date} ${r.day_name} • ${r.session_id}`;
+      const mainVal  = String(r.exercise).startsWith("Cardio") ? `${r.reps} min` : `${r.reps} reps @ ${Number(r.weight_kg || 0).toFixed(1)}kg`;
+      const rpeTxt   = r.rpe ? `(RPE ${r.rpe})` : "";
+      const meta     = `${r.program} • ${r.day_code || ""} • duration ${r.duration_min} min • ${r.date} ${r.day_name} • ${r.session_id}`;
 
       const div = document.createElement("div");
-      div.className = "list-item";
-      div.innerHTML =
-        `<b>${r.exercise}</b> — ${setLabel}${mainVal} ${rpeTxt}<br><span class="small">${meta}</span>`;
+      div.className = "rounded-xl border border-gray-200 bg-gray-50 px-3 py-2";
+      div.innerHTML = `<b>${r.exercise}</b> — ${setLabel}${mainVal} ${rpeTxt}<br>
+                       <span class="text-xs text-gray-500">${meta}</span>`;
       box.appendChild(div);
     });
   }
 
-  // ---- save to server ----
+  // Save to server
   el("saveServer").addEventListener("click", async (e)=>{
     if (state.rows.length === 0) { msg("Nothing to save — complete at least one exercise.", "error"); return; }
     const btn = e.currentTarget;
@@ -367,7 +512,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
       if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      msg(`Saved ${data.saved} row(s) to DB ✅`, "info");
+      msg(`Saved ${data.saved} row(s) to DB ✅`, "good");
     } catch (err) {
       console.error("Save failed:", err);
       msg("Save failed. Check console for details.", "error");
@@ -376,9 +521,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ---- export CSV ----
+  // CSV export
   function toCSV(rows){
-    const header = ["timestamp","date","day_name","program","session_id","exercise","sets","reps","weight_kg","rpe","volume_kg","duration_min","notes","source"];
+    const header = ["timestamp","date","day_name","program","day_code","session_id","exercise","sets","reps","weight_kg","rpe","volume_kg","duration_min","notes","source"];
     const esc = v => { if(v===null||v===undefined) return ""; const s=String(v).replace(/\"/g,'\"\"'); return /[\",\n]/.test(s) ? `"${s}"` : s; };
     const lines = [header.join(",")].concat(rows.map(r=>header.map(h=>esc(r[h])).join(",")));
     return lines.join("\n");
@@ -394,27 +539,13 @@ document.addEventListener('DOMContentLoaded', () => {
     URL.revokeObjectURL(url);
   };
 
-  // ---- export to Google Sheets ----
-  el("exportGoogle").addEventListener("click", async () => {
-    try {
-      const body = (state && Array.isArray(state.rows) && state.rows.length)
-        ? { rows: state.rows }   // export current session rows
-        : {};                    // or export recent rows from DB
-
-      const res = await fetch("/api/export/google", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body)
-      });
-      const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
-      alert(`Exported ${data.exported} row(s) to Google Sheets ✅`);
-    } catch (err) {
-      console.error(err);
-      alert("Export failed. Check server logs.");
-    }
-  });
-
-}); // DOMContentLoaded
+  // New session
+  el('newSession').onclick = ()=>{
+    state.sessionId=null; state.plan=[]; state.rows=[]; state.i=0; state.program=""; state.dayCode=""; state.durationMin=null;
+    stepSummary.classList.add('hidden');
+    stepSource.classList.remove('hidden');
+    msg('New session ready.');
+  };
+});
 </script>
 {% endblock %}

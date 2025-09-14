@@ -1,5 +1,6 @@
 import os
 import csv
+import json
 import secrets
 import hashlib
 from pathlib import Path
@@ -13,32 +14,39 @@ from flask import (
 
 from sqlalchemy import (
     create_engine, Column, Integer, String, Float, DateTime,
-    UniqueConstraint, text, or_
+    UniqueConstraint, text, or_, func
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
 from werkzeug.security import generate_password_hash, check_password_hash
 
-# load .env
+# --- .env ---
 from dotenv import load_dotenv
 load_dotenv()
 
 # ------------ Password hashing policy ------------
-# Force a portable method (your Python build lacks hashlib.scrypt)
 PW_METHOD    = os.getenv("PASSWORD_HASH_METHOD", "pbkdf2:sha256")
 PW_SALT_LEN  = int(os.getenv("PASSWORD_SALT_LENGTH", "16"))
-HAS_SCRYPT   = hasattr(hashlib, "scrypt")  # for friendly messaging on legacy hashes
+HAS_SCRYPT   = hasattr(hashlib, "scrypt")
 # -------------------------------------------------
 
-# --- Google Sheets deps ---
+# --- Google Sheets deps (kept; harmless if you stop using it) ---
 import gspread
 from google.oauth2.service_account import Credentials
 
+# --- Web Push deps ---
+from pywebpush import webpush, WebPushException
+
+# -----------------------------------------------------------------------------
+# App
+# -----------------------------------------------------------------------------
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "dev-secret-change-me")
 
-# --- Google Sheets config ---
-SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")  # absolute path to your JSON
-SPREADSHEET_ID      = os.getenv("SHEETS_SPREADSHEET_ID")            # your sheet key
+# -----------------------------------------------------------------------------
+# Google Sheets config (optional)
+# -----------------------------------------------------------------------------
+SERVICE_ACCOUNT_FILE = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+SPREADSHEET_ID       = os.getenv("SHEETS_SPREADSHEET_ID")
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 _gs_client = None
@@ -53,25 +61,20 @@ def sheets_client():
     return _gs_client
 
 def append_logs_to_sheet(rows, user_id, username):
-    """
-    Append rows to the first worksheet. Ensures a single header row exists (no clearing).
-    rows: list of dicts with the fields we store in DB/API.
-    """
+    """Append rows to the first worksheet. Ensures a single header row exists."""
     sh = sheets_client().open_by_key(SPREADSHEET_ID)
     ws = sh.sheet1
 
     header = [
         "timestamp","date","day_name","program","session_id","exercise",
         "sets","reps","weight_kg","rpe","volume_kg","duration_min","notes",
-        "source","user_id","username"
+        "source","user_id","username","day_code","program_id"
     ]
 
-    # Create header only if the sheet is empty.
-    first_row = ws.get_values("A1:Q1")  # Q = 17th column
+    first_row = ws.get_values("A1:T1")
     if not first_row:
         ws.append_row(header)
 
-    # Prepare data rows
     data = []
     for r in rows:
         data.append([
@@ -91,13 +94,16 @@ def append_logs_to_sheet(rows, user_id, username):
             r.get("source") or "pwa",
             user_id or "",
             username or "",
+            r.get("day_code") or "",
+            r.get("program_id") or "",
         ])
 
     if data:
         ws.append_rows(data, value_input_option="USER_ENTERED")
 
-
-# --- CSV export settings + helpers ---
+# -----------------------------------------------------------------------------
+# CSV export helpers
+# -----------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 CSV_PATH = DATA_DIR / "logs.csv"
@@ -105,7 +111,7 @@ CSV_PATH = DATA_DIR / "logs.csv"
 CSV_HEADER = [
     "user_id","username",
     "timestamp","date","day_name","time_hhmm",
-    "program","session_id","exercise",
+    "program","program_id","day_code","session_id","exercise",
     "sets","reps","weight_kg","rpe","volume_kg","duration_min",
     "notes","source"
 ]
@@ -131,6 +137,8 @@ def append_rows_to_csv(rows):
                 r.get("day_name",""),
                 r.get("time_hhmm",""),
                 r.get("program",""),
+                r.get("program_id",""),
+                r.get("day_code",""),
                 r.get("session_id",""),
                 r.get("exercise",""),
                 r.get("sets",""),
@@ -143,13 +151,16 @@ def append_rows_to_csv(rows):
                 r.get("source",""),
             ])
 
-
-# --- DB setup ---
+# -----------------------------------------------------------------------------
+# DB setup
+# -----------------------------------------------------------------------------
 engine = create_engine("sqlite:///database.db", echo=False, future=True)
 Base = declarative_base()
 SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
 
-# --- Models ---
+# -----------------------------------------------------------------------------
+# Models
+# -----------------------------------------------------------------------------
 class User(Base):
     __tablename__ = "user"
     id = Column(Integer, primary_key=True)
@@ -178,11 +189,67 @@ class WorkoutLog(Base):
     notes = Column(String(255))
     source = Column(String(16), default="pwa")
     user_id = Column(Integer, index=True)
+    # NEW:
+    day_code = Column(String(16), index=True)     # e.g. "upper_a"
+    program_id = Column(Integer, index=True)      # FK-ish (no constraint for SQLite simplicity)
 
+# --- Web Push subscriptions ---
+class PushSubscription(Base):
+    __tablename__ = "push_subscriptions"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True, nullable=True)
+    endpoint = Column(String, nullable=False, unique=True)
+    p256dh = Column(String(255), nullable=False)
+    auth   = Column(String(255), nullable=False)
+    ua     = Column(String(255), nullable=True)
+
+# --- NEW: Programs and routines --------------------------------------------
+class Program(Base):
+    __tablename__ = "program"
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, index=True)         # owner (null = admin template)
+    name = Column(String(64), nullable=False)     # e.g., "My Upper/Lower"
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+class RoutineDay(Base):
+    __tablename__ = "routine_day"
+    id = Column(Integer, primary_key=True)
+    program_id = Column(Integer, index=True)
+    code = Column(String(16), index=True)         # "upper_a", "upper_b", "lower_a"...
+    title = Column(String(64), nullable=False)    # "Upper A"
+    order_index = Column(Integer, default=0)
+
+class RoutineExercise(Base):
+    __tablename__ = "routine_exercise"
+    id = Column(Integer, primary_key=True)
+    day_id = Column(Integer, index=True)
+    exercise = Column(String(64), nullable=False) # e.g., "Bench press"
+    sets = Column(Integer, default=3)
+    reps = Column(Integer, default=10)
+    target_rpe = Column(String(8), default="8")
+    note = Column(String(255))
+
+# Create any missing tables
 Base.metadata.create_all(engine)
 
+# --- Lightweight migration: add new columns to workout_log if missing -------
+def _col_exists(table: str, col: str) -> bool:
+    with engine.connect() as c:
+        res = c.execute(text(f"PRAGMA table_info({table})"))
+        return any(r[1] == col for r in res.fetchall())
 
-# --- Auth helpers ---
+def _add_column_if_missing(table: str, ddl: str):
+    if not _col_exists(table, ddl.split()[0]):
+        with engine.begin() as c:
+            c.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
+
+# Add columns only once
+_add_column_if_missing("workout_log", "day_code TEXT")
+_add_column_if_missing("workout_log", "program_id INTEGER")
+
+# -----------------------------------------------------------------------------
+# Auth helpers
+# -----------------------------------------------------------------------------
 def current_user_id():
     return session.get("uid")
 
@@ -194,8 +261,9 @@ def login_required(view_func):
         return view_func(*args, **kwargs)
     return wrapper
 
-
-# --- Admin helpers ---
+# -----------------------------------------------------------------------------
+# Admin helpers
+# -----------------------------------------------------------------------------
 def is_admin():
     uid = session.get("uid")
     if not uid:
@@ -217,13 +285,104 @@ def admin_required(view_func):
         return view_func(*args, **kwargs)
     return wrapper
 
-# Expose a simple flag for templates
 @app.context_processor
 def inject_flags():
     return {"is_admin": session.get("role") == "admin"}
 
+# -----------------------------------------------------------------------------
+# Web Push config
+# -----------------------------------------------------------------------------
+VAPID_PRIVATE_FILE = os.getenv("VAPID_PRIVATE_FILE")
+VAPID_PUBLIC_FILE  = os.getenv("VAPID_PUBLIC_FILE")
+VAPID_SUBJECT      = os.getenv("VAPID_SUBJECT", "mailto:admin@example.com")
 
-# --- Pages ---
+try:
+    VAPID_PRIVATE_KEY_PEM = Path(VAPID_PRIVATE_FILE).read_text().strip() if VAPID_PRIVATE_FILE else None
+    VAPID_PUBLIC_KEY_PEM  = Path(VAPID_PUBLIC_FILE).read_text().strip() if VAPID_PUBLIC_FILE else None
+except Exception as _e:
+    VAPID_PRIVATE_KEY_PEM = None
+    VAPID_PUBLIC_KEY_PEM  = None
+
+def _vapid_claims():
+    return {"sub": VAPID_SUBJECT}
+
+def push_enabled():
+    return bool(VAPID_PRIVATE_KEY_PEM and VAPID_PUBLIC_KEY_PEM)
+
+def send_push_to_user(db, user_id, payload: dict):
+    if not push_enabled():
+        return 0, 0
+    sent, failed = 0, 0
+    subs = db.query(PushSubscription).filter(PushSubscription.user_id == user_id).all()
+    for sub in subs:
+        try:
+            webpush(
+                subscription_info={"endpoint": sub.endpoint,
+                                   "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
+                data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY_PEM,
+                vapid_claims=_vapid_claims()
+            )
+            sent += 1
+        except WebPushException:
+            failed += 1
+    return sent, failed
+
+def send_push_all(db, payload: dict):
+    if not push_enabled():
+        return 0, 0
+    sent, failed = 0, 0
+    for sub in db.query(PushSubscription).all():
+        try:
+            webpush(
+                subscription_info={"endpoint": sub.endpoint,
+                                   "keys": {"p256dh": sub.p256dh, "auth": sub.auth}},
+                data=json.dumps(payload),
+                vapid_private_key=VAPID_PRIVATE_KEY_PEM,
+                vapid_claims=_vapid_claims()
+            )
+            sent += 1
+        except WebPushException:
+            failed += 1
+    return sent, failed
+
+# Simple categorization for Upper/Lower tracking
+def categorize_exercise(name: str) -> str:
+    n = (name or "").lower()
+    upper_kw = ["bench","press","row","pull","curl","lat","shoulder","tricep","bicep","chest","push-up","dip"]
+    lower_kw = ["squat","deadlift","leg","ham","quad","calf","glute","lunge","hip"]
+    if any(k in n for k in upper_kw): return "Upper"
+    if any(k in n for k in lower_kw): return "Lower"
+    return "Other"
+
+def check_pr_and_notify(db, uid: int, exercise: str, weight_kg: float):
+    if not (push_enabled() and uid and exercise and (weight_kg is not None)):
+        return
+    prev_best = db.query(func.max(WorkoutLog.weight_kg)).filter(
+        WorkoutLog.user_id == uid, WorkoutLog.exercise.ilike(exercise)
+    ).scalar() or 0.0
+
+    cat = categorize_exercise(exercise)
+    prev_cat_best = 0.0
+    if cat != "Other":
+        all_cat = db.query(WorkoutLog.weight_kg, WorkoutLog.exercise).filter(
+            WorkoutLog.user_id == uid
+        ).all()
+        prev_cat_best = max([w for (w, ex) in all_cat if categorize_exercise(ex) == cat and w is not None] or [0.0])
+
+    new_exercise_pr = weight_kg > (prev_best or 0.0)
+    new_cat_pr = weight_kg > (prev_cat_best or 0.0)
+
+    if new_exercise_pr or new_cat_pr:
+        lines = []
+        if new_exercise_pr: lines.append(f"New PR on {exercise}: {weight_kg:g} kg")
+        if new_cat_pr and cat != "Other": lines.append(f"New {cat} category best: {weight_kg:g} kg")
+        payload = {"title": "🎉 New PR!", "body": " • ".join(lines), "data": {"url": "/logs"}}
+        send_push_to_user(db, uid, payload)
+
+# -----------------------------------------------------------------------------
+# Pages
+# -----------------------------------------------------------------------------
 @app.route("/")
 def root():
     return redirect(url_for("home") if current_user_id() else url_for("login"))
@@ -259,6 +418,12 @@ def add_workout():
     weight = float(request.form["weight"])
     sets = int(request.form.get("sets", 1))
     date = request.form.get("date") or datetime.today().strftime("%Y-%m-%d")
+    day_code = request.form.get("day_code") or ""       # NEW (optional)
+    program_id = request.form.get("program_id") or None
+    try:
+        program_id = int(program_id) if program_id else None
+    except ValueError:
+        program_id = None
 
     db = SessionLocal()
     try:
@@ -270,11 +435,16 @@ def add_workout():
             weight_kg=weight,
             date=date,
             day_name=datetime.strptime(date, "%Y-%m-%d").strftime("%A"),
-            source="manual"
+            source="manual",
+            day_code=day_code,
+            program_id=program_id
         )
         db.add(log)
         db.commit()
         flash("Workout added!", "info")
+
+        # PR notifications
+        check_pr_and_notify(db, uid, exercise, weight)
 
         # Append to CSV for manual adds
         try:
@@ -287,6 +457,8 @@ def add_workout():
                 "day_name": log.day_name or "",
                 "time_hhmm": now_utc.strftime("%H:%M"),
                 "program": log.program or "",
+                "program_id": program_id or "",
+                "day_code": day_code or "",
                 "session_id": log.session_id or "",
                 "exercise": log.exercise or "",
                 "sets": log.sets or "",
@@ -309,8 +481,9 @@ def add_workout():
 def logs_page():
     return render_template("logs.html")
 
-
-# --- Auth pages ---
+# -----------------------------------------------------------------------------
+# Auth pages
+# -----------------------------------------------------------------------------
 @app.get("/login")
 def login():
     return render_template("login.html")
@@ -330,7 +503,6 @@ def login_post():
             flash("Invalid username or password", "error")
             return redirect(url_for("login"))
 
-        # Handle legacy scrypt hashes on systems without hashlib.scrypt
         if user.password_hash.startswith("scrypt:") and not HAS_SCRYPT:
             flash("Your password uses 'scrypt', which isn't supported on this system. "
                   "Ask an admin to reset your password, or create a new account.", "error")
@@ -339,8 +511,7 @@ def login_post():
         ok = False
         try:
             ok = check_password_hash(user.password_hash, password)
-        except AttributeError as e:
-            # Safety net for environments missing certain hash backends
+        except AttributeError:
             flash("Login hash method isn't supported on this system. "
                   "Please reset your password from the Admin → Users page.", "error")
             return redirect(url_for("login"))
@@ -349,7 +520,6 @@ def login_post():
             flash("Invalid username or password", "error")
             return redirect(url_for("login"))
 
-        # Success: set session (include role for template conditionals)
         session["uid"] = user.id
         session["username"] = user.username
         session["email"] = user.email
@@ -407,8 +577,9 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-
-# --- API: Create logs from PWA page ---
+# -----------------------------------------------------------------------------
+# API: Create logs from PWA page
+# -----------------------------------------------------------------------------
 @app.post("/api/logs")
 @login_required
 def api_create_logs():
@@ -423,7 +594,17 @@ def api_create_logs():
     db = SessionLocal()
     try:
         csv_rows = []
+        inserted = []
+
         for r in rows:
+            # NEW fields
+            day_code = r.get("day_code")
+            program_id = r.get("program_id")
+            try:
+                program_id = int(program_id) if program_id is not None else None
+            except (TypeError, ValueError):
+                program_id = None
+
             rec = WorkoutLog(
                 user_id=uid,
                 session_id=r.get("session_id"),
@@ -439,8 +620,11 @@ def api_create_logs():
                 duration_min=r.get("duration_min"),
                 notes=(r.get("notes") or "")[:255],
                 source=r.get("source") or "pwa",
+                day_code=day_code,
+                program_id=program_id
             )
             db.add(rec)
+            inserted.append(rec)
 
             # CSV time columns
             ts = r.get("timestamp")
@@ -460,6 +644,8 @@ def api_create_logs():
                 "day_name": r.get("day_name") or "",
                 "time_hhmm": dt.strftime("%H:%M"),
                 "program": r.get("program") or "",
+                "program_id": program_id or "",
+                "day_code": day_code or "",
                 "session_id": r.get("session_id") or "",
                 "exercise": r.get("exercise") or "",
                 "sets": r.get("sets") or "",
@@ -474,6 +660,14 @@ def api_create_logs():
 
         db.commit()
 
+        # PR notifications
+        for rec in inserted:
+            try:
+                if rec.weight_kg is not None:
+                    check_pr_and_notify(db, uid, rec.exercise, rec.weight_kg)
+            except Exception as _e:
+                app.logger.warning(f"PR notify error: {_e}")
+
         try:
             append_rows_to_csv(csv_rows)
         except Exception as e:
@@ -486,7 +680,9 @@ def api_create_logs():
     finally:
         db.close()
 
-# --- API: list logs ---
+# -----------------------------------------------------------------------------
+# API: list logs
+# -----------------------------------------------------------------------------
 @app.get("/api/logs")
 @login_required
 def api_list_logs():
@@ -512,6 +708,8 @@ def api_list_logs():
             "date": x.date,
             "day_name": x.day_name,
             "program": x.program,
+            "program_id": x.program_id,
+            "day_code": x.day_code,
             "exercise": x.exercise,
             "sets": x.sets,
             "reps": x.reps,
@@ -526,14 +724,111 @@ def api_list_logs():
     finally:
         db.close()
 
-# --- API: export to Google Sheets ---
+# -----------------------------------------------------------------------------
+# NEW: API — list programs (user + admin-templates)
+# -----------------------------------------------------------------------------
+@app.get("/api/programs")
+@login_required
+def api_list_programs():
+    uid = current_user_id()
+    db = SessionLocal()
+    try:
+        programs = []
+        prog_rows = db.query(Program).filter(
+            (Program.user_id == uid) | (Program.user_id == None)
+        ).order_by(Program.id.asc()).all()
+
+        for p in prog_rows:
+            days = db.query(RoutineDay).filter(RoutineDay.program_id == p.id).order_by(RoutineDay.order_index.asc()).all()
+            program_days = []
+            for d in days:
+                exs = db.query(RoutineExercise).filter(RoutineExercise.day_id == d.id).order_by(RoutineExercise.id.asc()).all()
+                program_days.append({
+                    "id": d.id,
+                    "code": d.code,
+                    "title": d.title,
+                    "order_index": d.order_index,
+                    "exercises": [
+                        {
+                            "id": ex.id,
+                            "exercise": ex.exercise,
+                            "sets": ex.sets,
+                            "reps": ex.reps,
+                            "target_rpe": ex.target_rpe,
+                            "note": ex.note or ""
+                        }
+                        for ex in exs
+                    ]
+                })
+            programs.append({"id": p.id, "name": p.name, "user_id": p.user_id, "days": program_days})
+        return jsonify({"ok": True, "programs": programs})
+    finally:
+        db.close()
+
+# -----------------------------------------------------------------------------
+# OPTIONAL: seed an admin template program (call once)
+# -----------------------------------------------------------------------------
+@app.post("/admin/seed_default_program")
+@admin_required
+def admin_seed_default_program():
+    """
+    Creates a default 4-day Upper/Lower template program (user_id = NULL) if it doesn't exist.
+    """
+    db = SessionLocal()
+    try:
+        existing = db.query(Program).filter(Program.user_id == None, Program.name == "Upper/Lower (Template)").first()
+        if existing:
+            return jsonify({"ok": True, "created": False, "program_id": existing.id})
+
+        p = Program(user_id=None, name="Upper/Lower (Template)")
+        db.add(p); db.flush()
+
+        spec = [
+            ("upper_a", "Day 1 - Upper A", [
+                ("Flat chest press", 2, 8, "8"), ("Shoulder press", 2, 10, "8"),
+                ("Upper back row", 2, 10, "8"), ("Lat pulldown", 2, 10, "8"),
+                ("Tricep push down", 2, 12, "8"), ("Bicep curl", 2, 12, "8")
+            ]),
+            ("lower_a", "Day 2 - Lower A", [
+                ("Squat pattern / Leg press", 2, 8, "8"), ("Seated hammy", 2, 10, "8"),
+                ("Leg extensions", 1, 12, "8"), ("Adductors", 2, 12, "8"),
+                ("Calves", 2, 12, "8"), ("Abs", 2, 15, "8")
+            ]),
+            ("upper_b", "Day 4 - Upper B", [
+                ("Upper back row", 2, 10, "8"), ("Lat biased row", 2, 10, "8"),
+                ("Incline chest press", 2, 8, "8"), ("Lateral raise", 2, 12, "8"),
+                ("Tricep compound (dips, JM)", 2, 8, "8"), ("Bicep curl", 2, 12, "8")
+            ]),
+            ("lower_b", "Day 5 - Lower B", [
+                ("Hip hinge (RDL , hyperextensions)", 2, 8, "8"),
+                ("Squat pattern / Leg press", 1, 8, "8"),
+                ("Leg extension", 1, 12, "8"),
+                ("Lying hammy", 1, 10, "8"),
+                ("Adductors", 2, 12, "8"),
+                ("Calves", 2, 12, "8"),
+                ("Abs", 2, 15, "8")
+            ]),
+        ]
+
+        for idx, (code, title, exercises) in enumerate(spec):
+            d = RoutineDay(program_id=p.id, code=code, title=title, order_index=idx)
+            db.add(d); db.flush()
+            for (name, sets, reps, rpe) in exercises:
+                db.add(RoutineExercise(
+                    day_id=d.id, exercise=name, sets=sets, reps=reps, target_rpe=rpe
+                ))
+
+        db.commit()
+        return jsonify({"ok": True, "created": True, "program_id": p.id})
+    finally:
+        db.close()
+
+# -----------------------------------------------------------------------------
+# API: export to Google Sheets (optional)
+# -----------------------------------------------------------------------------
 @app.post("/api/export/google")
 @login_required
 def api_export_google():
-    """
-    Accepts optional JSON: {"rows": [ ... ]}.
-    If not provided, exports the latest N rows from the DB for the current user.
-    """
     payload = request.get_json(silent=True) or {}
     rows = payload.get("rows")
 
@@ -557,6 +852,7 @@ def api_export_google():
             rows = [{
                 "timestamp": x.timestamp.isoformat(timespec="seconds") if isinstance(x.timestamp, datetime) else str(x.timestamp),
                 "date": x.date, "day_name": x.day_name, "program": x.program,
+                "program_id": x.program_id, "day_code": x.day_code,
                 "session_id": x.session_id, "exercise": x.exercise, "sets": x.sets,
                 "reps": x.reps, "weight_kg": x.weight_kg, "rpe": x.rpe,
                 "volume_kg": x.volume_kg, "duration_min": x.duration_min,
@@ -574,8 +870,70 @@ def api_export_google():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
+# -----------------------------------------------------------------------------
+# Web Push routes
+# -----------------------------------------------------------------------------
+@app.get("/vapid-public-key")
+def vapid_public_key():
+    if not VAPID_PUBLIC_KEY_PEM:
+        return jsonify({"ok": False, "error": "public key not configured"}), 500
+    return jsonify({"ok": True, "pem": VAPID_PUBLIC_KEY_PEM})
 
-# ---------- ADMIN ROUTES ----------
+@app.post("/api/push/subscribe")
+def api_push_subscribe():
+    data = request.get_json(force=True)
+    if not data or "endpoint" not in data or "keys" not in data:
+        return jsonify({"ok": False, "error": "bad subscription"}), 400
+    db = SessionLocal()
+    try:
+        uid = session.get("uid")
+        existing = db.query(PushSubscription).filter_by(endpoint=data["endpoint"]).first()
+        if existing:
+            existing.p256dh = data["keys"].get("p256dh","")
+            existing.auth   = data["keys"].get("auth","")
+            existing.user_id = uid
+            existing.ua = data.get("ua")
+        else:
+            db.add(PushSubscription(
+                user_id=uid,
+                endpoint=data["endpoint"],
+                p256dh=data["keys"].get("p256dh",""),
+                auth=data["keys"].get("auth",""),
+                ua=data.get("ua")
+            ))
+        db.commit()
+        return jsonify({"ok": True})
+    finally:
+        db.close()
+
+@app.post("/api/push/unsubscribe")
+def api_push_unsubscribe():
+    data = request.get_json(force=True)
+    ep = data.get("endpoint")
+    if not ep:
+        return jsonify({"ok": False, "error": "missing endpoint"}), 400
+    db = SessionLocal()
+    try:
+        db.query(PushSubscription).filter_by(endpoint=ep).delete()
+        db.commit()
+        return jsonify({"ok": True})
+    finally:
+        db.close()
+
+@app.post("/api/push/test")
+@admin_required
+def api_push_test():
+    payload = {"title": "GymLogger", "body": "Push works 🎉", "data": {"url": "/"}}
+    db = SessionLocal()
+    try:
+        sent, failed = send_push_all(db, payload)
+        return jsonify({"ok": True, "sent": sent, "failed": failed})
+    finally:
+        db.close()
+
+# -----------------------------------------------------------------------------
+# Admin routes
+# -----------------------------------------------------------------------------
 @app.get("/admin")
 @admin_required
 def admin_index():
@@ -619,10 +977,8 @@ def admin_user_role(user_id):
             return redirect(url_for("admin_users"))
         u.role = new_role
         db.commit()
-        # keep my session in sync if I changed my own role
         if session.get("uid") == u.id:
             session["role"] = u.role
-
         flash(f"Role updated: {u.username} → {new_role}", "info")
     finally:
         db.close()
@@ -638,7 +994,6 @@ def admin_user_reset_pw(user_id):
         if not u:
             flash("User not found.", "error")
             return redirect(url_for("admin_users"))
-        # re-hash with PBKDF2 so it works everywhere
         u.password_hash = generate_password_hash(temp_pw, method=PW_METHOD, salt_length=PW_SALT_LEN)
         db.commit()
         app.logger.warning(f"[ADMIN] Temporary password for {u.username} ({u.email}): {temp_pw}")
@@ -687,15 +1042,18 @@ def admin_logs():
 @app.get("/admin/export/csv")
 @admin_required
 def admin_export_csv():
-    """Download the consolidated CSV that the app writes to disk."""
     _ensure_csv_header()
     if not CSV_PATH.exists():
         abort(404)
     return send_from_directory(str(DATA_DIR), CSV_PATH.name,
                                as_attachment=True, download_name="logs.csv")
-
-
-# --- Health checks ---
+@app.get("/routines")
+@login_required
+def routines_page():
+    return render_template("routines.html")
+# -----------------------------------------------------------------------------
+# Health checks
+# -----------------------------------------------------------------------------
 @app.get("/health/app")
 def health_app():
     return jsonify({"ok": True, "status": "up"})
@@ -735,8 +1093,9 @@ def health_csv():
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
 
-
-# --- PWA bits ---
+# -----------------------------------------------------------------------------
+# PWA bits
+# -----------------------------------------------------------------------------
 @app.route("/sw.js")
 def sw():
     try:
@@ -751,8 +1110,9 @@ def favicon():
     except Exception:
         abort(404)
 
-
-# --- Errors ---
+# -----------------------------------------------------------------------------
+# Errors
+# -----------------------------------------------------------------------------
 @app.errorhandler(404)
 def err404(_):
     return render_template("404.html"), 404
@@ -761,6 +1121,8 @@ def err404(_):
 def err500(_):
     return render_template("500.html"), 500
 
-
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5001, debug=True)

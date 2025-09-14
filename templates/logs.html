@@ -1,131 +1,302 @@
 {% extends "base.html" %}
-{% block title %}My Logs{% endblock %}
+{% block title %}Logs{% endblock %}
 
 {% block content %}
-<style>
-  table { border-collapse: collapse; width: 100%; }
-  th, td { border:1px solid #eee; padding:6px 8px; text-align:left; }
-  th { position: sticky; top: 0; background:#fafafa; }
-  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px; }
-  .pill { text-decoration:none; padding:6px 10px; border-radius:999px; border:1px solid #e5e5e5 }
-  input, select, button { padding: 8px 10px; border-radius:10px; border:1px solid #ddd }
-</style>
+<div class="max-w-5xl mx-auto space-y-6">
 
-<div class="row">
-  <a href="{{ url_for('home') }}" class="pill">← Dashboard</a>
-  <a href="{{ url_for('workouts') }}" class="pill">+ Add workout</a>
-  <button id="btnCsv">Export CSV</button>
-  <button id="btnGsheet">Export to Google Sheets</button>
-  <label class="small">Limit:
-    <select id="limit">
-      <option>50</option>
-      <option selected>100</option>
-      <option>250</option>
-      <option>500</option>
-    </select>
-  </label>
+  <!-- Header / Controls -->
+  <div class="flex items-center justify-between">
+    <div>
+      <h1 class="text-2xl font-semibold">Workout History</h1>
+      <p class="text-gray-500 mt-1">Your latest sessions.</p>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <input id="q" type="text" placeholder="Search exercise…"
+             class="hidden sm:block rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+      <select id="limit"
+              class="rounded-xl border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+        <option value="10">Last 10</option>
+        <option value="25">Last 25</option>
+        <option value="50" selected>Last 50</option>
+        <option value="100">Last 100</option>
+      </select>
+
+      <button id="btn-refresh"
+              class="rounded-xl border border-gray-300 px-3 py-2 bg-white text-gray-800 hover:shadow-sm transition">
+        Refresh
+      </button>
+
+      <button id="btn-csv"
+              class="rounded-xl border border-gray-300 px-3 py-2 bg-white text-gray-800 hover:shadow-sm transition">
+        Export CSV
+      </button>
+
+      <button id="btn-gsheet"
+              class="rounded-xl border border-gray-300 px-3 py-2 bg-white text-gray-800 hover:shadow-sm transition">
+        Export to Google
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty"
+       class="hidden rounded-2xl border border-gray-200 bg-white p-8 text-center text-gray-500">
+    No workouts yet.
+  </div>
+
+  <!-- Error state -->
+  <div id="err"
+       class="hidden rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-red-700">
+    Failed to load logs.
+  </div>
+
+  <!-- List -->
+  <div id="list" class="grid gap-3"></div>
 </div>
-
-<div id="msg" class="small" style="min-height:20px;margin-bottom:8px;"></div>
-
-<table id="tbl">
-  <thead>
-    <tr>
-      <th>Date</th>
-      <th>Program</th>
-      <th>Exercise</th>
-      <th>Set</th>
-      <th>Reps</th>
-      <th>Weight (kg)</th>
-      <th>RPE</th>
-      <th>Volume (kg)</th>
-      <th>Dur (min)</th>
-      <th>Notes</th>
-      <th>Source</th>
-      <th>Session</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const el = id => document.getElementById(id);
-const msg = (t, kind="info") => {
-  const m = el("msg"); if(!m) return;
-  m.style.color = kind==="error" ? "crimson" : "#111";
-  m.textContent = t || "";
-};
+(function () {
+  const list      = document.getElementById('list');
+  const emptyBox  = document.getElementById('empty');
+  const errBox    = document.getElementById('err');
+  const limitSel  = document.getElementById('limit');
+  const qInput    = document.getElementById('q');
+  const btnRef    = document.getElementById('btn-refresh');
+  const btnCsv    = document.getElementById('btn-csv');
+  const btnG      = document.getElementById('btn-gsheet');
 
-async function loadLogs(){
-  msg("Loading…");
-  const limit = el("limit").value || 100;
-  const res = await fetch(`/api/logs?limit=${encodeURIComponent(limit)}`);
-  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
-  if (!res.ok || !data.ok) { msg(data.error || "Failed loading logs", "error"); return; }
-  const tbody = document.querySelector("#tbl tbody");
-  tbody.innerHTML = "";
-  for (const r of data.items){
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td>${r.date || ""} ${r.day_name || ""}</td>
-      <td>${r.program || ""}</td>
-      <td>${r.exercise || ""}</td>
-      <td>${r.sets ?? ""}</td>
-      <td>${r.reps ?? ""}</td>
-      <td>${(r.weight_kg ?? "")}</td>
-      <td>${r.rpe ?? ""}</td>
-      <td>${r.volume_kg ?? ""}</td>
-      <td>${r.duration_min ?? ""}</td>
-      <td>${(r.notes || "").replace(/</g,"&lt;")}</td>
-      <td>${r.source || ""}</td>
-      <td>${r.session_id || ""}</td>
-    `;
-    tbody.appendChild(tr);
+  let lastRawItems = [];   // flat rows from /api/logs
+  let lastAggItems = [];   // aggregated objects for render
+
+  function escapeHtml(s) {
+    return String(s || '')
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;')
+      .replace(/'/g,'&#039;');
   }
-  msg(`Loaded ${data.items.length} row(s).`);
-}
 
-function toCSV(items){
-  const header = ["timestamp","date","day_name","program","session_id","exercise","sets","reps","weight_kg","rpe","volume_kg","duration_min","notes","source"];
-  const esc = v => { if(v===null||v===undefined) return ""; const s=String(v).replace(/\"/g,'\"\"'); return /[\",\n]/.test(s) ? `"${s}"` : s; };
-  const lines = [header.join(",")].concat(items.map(r=>header.map(h=>esc(r[h])).join(",")));
-  return lines.join("\n");
-}
-
-async function exportCsv(){
-  const limit = el("limit").value || 100;
-  const res = await fetch(`/api/logs?limit=${encodeURIComponent(limit)}`);
-  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
-  if (!res.ok || !data.ok) { msg(data.error || "Failed to export", "error"); return; }
-  const csv = toCSV(data.items);
-  const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = "my_workouts.csv";
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
-}
-
-async function exportGoogle(){
-  msg("Exporting to Google Sheets…");
-  const limit = el("limit").value || 100;
-  const res = await fetch(`/export/google?limit=${encodeURIComponent(limit)}`);
-  const data = await res.json().catch(()=>({ok:false,error:"Bad JSON"}));
-  if (!res.ok || !data.ok) { msg(data.error || "Google export failed.", "error"); return; }
-  msg(`Exported ${data.exported} row(s) to Google Sheets ✅`);
-  if (data.sheet_url) {
-    // optional: open the sheet
-    window.open(data.sheet_url, "_blank");
+  function formatDate(d) {
+    try {
+      // server returns "YYYY-MM-DD" in x.date — safe to parse
+      const dt = new Date(d);
+      if (isNaN(dt)) return (d || '');
+      return dt.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: '2-digit' });
+    } catch { return d || ''; }
   }
-}
 
-document.addEventListener("DOMContentLoaded", ()=>{
-  loadLogs();
-  el("limit").addEventListener("change", loadLogs);
-  el("btnCsv").addEventListener("click", exportCsv);
-  el("btnGsheet").addEventListener("click", exportGoogle);
-});
+  // Compute volume fallback if missing
+  function computeVolume(r) {
+    const s = Number(r.sets || 1) || 1;
+    const reps = Number(r.reps || 0) || 0;
+    const kg = Number(r.weight_kg || 0) || 0;
+    return s * reps * kg;
+  }
+
+  // Aggregate by (date + session_id + exercise)
+  function aggregate(items) {
+    const map = new Map();
+    for (const r of items) {
+      const date = r.date || '';
+      const sid  = r.session_id || '';
+      const ex   = r.exercise || 'Workout';
+      const key  = `${date}|${sid}|${ex}`;
+
+      const vol = (r.volume_kg != null && !isNaN(Number(r.volume_kg)))
+        ? Number(r.volume_kg)
+        : computeVolume(r);
+
+      if (!map.has(key)) {
+        map.set(key, {
+          id: r.id,                 // first id (not used for navigation here)
+          date,
+          day_name: r.day_name || '',
+          session_id: sid,
+          program: r.program || '',
+          day_code: r.day_code || '',
+          exercise: ex,
+          sets_count: 0,
+          total_volume: 0,
+          notes: r.notes || '',
+          // Extras to display if you want later:
+          max_weight: (r.weight_kg != null) ? Number(r.weight_kg) : 0
+        });
+      }
+      const agg = map.get(key);
+      agg.sets_count += 1;
+      agg.total_volume += vol;
+      if (!agg.notes && r.notes) agg.notes = r.notes; // keep first non-empty note
+      if (r.weight_kg != null) agg.max_weight = Math.max(agg.max_weight, Number(r.weight_kg));
+    }
+
+    // Convert to array and sort: newest date first, then session
+    const arr = Array.from(map.values());
+    arr.sort((a,b) => {
+      // string compare date descending (YYYY-MM-DD is safe lexically)
+      if (a.date < b.date) return 1;
+      if (a.date > b.date) return -1;
+      // tie-breaker: session id desc
+      if (a.session_id < b.session_id) return 1;
+      if (a.session_id > b.session_id) return -1;
+      return 0;
+    });
+    return arr;
+  }
+
+  async function fetchLogs() {
+    emptyBox.classList.add('hidden');
+    errBox.classList.add('hidden');
+    list.innerHTML = '';
+
+    const limit = limitSel.value || 50;
+    const url = `/api/logs?limit=${encodeURIComponent(limit)}`;
+    const res = await fetch(url, { headers: { "Accept": "application/json" }});
+    if (!res.ok) throw new Error('Failed to load logs');
+    const data = await res.json();
+
+    if (!data.ok || !Array.isArray(data.items)) {
+      throw new Error(data.error || 'Malformed response');
+    }
+
+    lastRawItems = data.items;
+    lastAggItems = aggregate(lastRawItems);
+    render();
+  }
+
+  function render() {
+    const q = (qInput?.value || '').trim().toLowerCase();
+    const filtered = q
+      ? lastAggItems.filter(x => String(x.exercise || '').toLowerCase().includes(q))
+      : lastAggItems;
+
+    list.innerHTML = '';
+
+    if (!filtered.length) {
+      emptyBox.classList.remove('hidden');
+      return;
+    }
+    emptyBox.classList.add('hidden');
+
+    for (const x of filtered) {
+      const dateStr = formatDate(x.date);
+      const exName  = x.exercise || 'Workout';
+      const sets    = x.sets_count ?? '-';
+      const volume  = (x.total_volume != null)
+        ? Number(x.total_volume).toFixed(0)
+        : '-';
+      const notes   = x.notes || '';
+      const meta    = [
+        x.program || '',
+        x.day_code || '',
+        x.session_id || ''
+      ].filter(Boolean).join(' • ');
+
+      const card = document.createElement('div');
+      card.className =
+        "bg-white rounded-2xl border border-gray-200 hover:shadow-sm transition p-4";
+
+      card.innerHTML = `
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-sm text-gray-500">${escapeHtml(dateStr)}</div>
+            <div class="mt-1 text-base font-semibold text-gray-900">${escapeHtml(exName)}</div>
+            ${meta ? `<div class="mt-0.5 text-xs text-gray-400">${escapeHtml(meta)}</div>` : ``}
+            ${notes ? `<div class="mt-1.5 text-sm text-gray-600">${escapeHtml(notes)}</div>` : ``}
+          </div>
+          <div class="text-right shrink-0">
+            <div class="text-xs text-gray-500">Sets</div>
+            <div class="text-lg font-semibold">${sets}</div>
+            <div class="mt-2 text-xs text-gray-500">Volume</div>
+            <div class="text-lg font-semibold">${volume}</div>
+          </div>
+        </div>`;
+      list.appendChild(card);
+    }
+  }
+
+  // CSV export (flat rows as-is from API)
+  function toCSV(items){
+    const header = [
+      "timestamp","date","day_name","program","program_id","day_code","session_id",
+      "exercise","sets","reps","weight_kg","rpe","volume_kg","duration_min","notes","source"
+    ];
+    const esc = v => {
+      if (v === null || v === undefined) return "";
+      const s = String(v).replace(/"/g,'""');
+      return /[",\n]/.test(s) ? `"${s}"` : s;
+    };
+    const lines = [header.join(",")].concat(
+      items.map(r => header.map(h => esc(r[h])).join(","))
+    );
+    return lines.join("\n");
+  }
+
+  async function exportCsv(){
+    try {
+      const limit = limitSel.value || 50;
+      const res = await fetch(`/api/logs?limit=${encodeURIComponent(limit)}`, { headers: { "Accept": "application/json" }});
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+
+      const csv = toCSV(data.items || []);
+      const blob = new Blob([csv], { type:"text/csv;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = "my_workouts.csv";
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error(e);
+      errBox.classList.remove('hidden');
+      errBox.textContent = 'Failed to export CSV.';
+    }
+  }
+
+  // Google Sheets export (server route you already have)
+  async function exportGoogle(){
+    try {
+      const limit = limitSel.value || 50;
+      const res = await fetch(`/api/export/google?limit=${encodeURIComponent(limit)}`, {
+        method: "POST",
+        headers: { "Accept": "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({}) // server will fetch last N rows itself when rows not provided
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || `HTTP ${res.status}`);
+      // Optional: show a toast; if your API returns a URL you can open it here
+      alert(`Exported ${data.exported} row(s) to Google Sheets ✅`);
+    } catch (e) {
+      console.error(e);
+      errBox.classList.remove('hidden');
+      errBox.textContent = 'Google export failed.';
+    }
+  }
+
+  // Wire events
+  limitSel.addEventListener('change', () => fetchLogs().catch(handleErr));
+  btnRef.addEventListener('click', () => fetchLogs().catch(handleErr));
+  btnCsv.addEventListener('click', exportCsv);
+  btnG.addEventListener('click', exportGoogle);
+
+  // Debounced search
+  let t;
+  qInput?.addEventListener('input', () => {
+    clearTimeout(t);
+    t = setTimeout(render, 120);
+  });
+
+  function handleErr(err){
+    console.error(err);
+    errBox.classList.remove('hidden');
+    emptyBox.classList.remove('hidden');
+  }
+
+  // Initial load
+  fetchLogs().catch(handleErr);
+})();
 </script>
 {% endblock %}

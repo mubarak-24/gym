@@ -2,115 +2,227 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
-<!-- Full-bleed area so the main card can expand to page edges -->
-<div class="full-bleed" style="padding:28px 12px 36px; display:flex; justify-content:center;">
-  <div style="width:min(1600px, 100% - 24px)">
+<div class="space-y-6">
 
-    <!-- Accent tab -->
-    <div aria-hidden="true"
-         style="width:220px;height:44px;border-radius:12px;
-                background:linear-gradient(180deg,#e6a98f,#c7886b);
-                box-shadow:0 10px 24px rgba(0,0,0,.18);
-                margin:0 auto -22px auto;position:relative;z-index:2">
+  <!-- Today’s Workout Card -->
+  <div class="bg-white rounded-2xl shadow p-6">
+    <div class="flex items-start justify-between">
+      <div>
+        <h2 class="text-xl font-semibold">Today’s Workout</h2>
+        <p id="today-subtitle" class="text-gray-500 mt-1">Let’s get some work in 💪</p>
+      </div>
+      <span id="progress-label" class="text-sm text-gray-400">0%</span>
     </div>
 
-    <!-- Main card -->
-    <section class="panel" style="min-height:clamp(520px, 100dvh - 200px, 1300px)">
-      <header>
-        <h1 style="margin:6px;font-size:28px;letter-spacing:.2px">Dashboard</h1>
-        <p style="opacity:.8;margin:0 6px 18px">
-          Welcome to GymLogger{% if session.get('username') %}, {{ session['username'] }}{% endif %}.
-        </p>
-      </header>
+    <!-- Progress bar -->
+    <div class="mt-4 w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+      <div id="progress-bar" class="h-2 bg-green-500 rounded-full w-0 transition-all"></div>
+    </div>
 
-      <!-- Quick actions -->
-      <div class="grid-cards" style="margin:0 6px 20px">
-        <a href="{{ url_for('workouts') }}" class="card"
-           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
-          <div style="font-size:13px;opacity:.75">Quick action</div>
-          <div style="font-weight:700;margin:6px 0">Start Workout</div>
-          <div style="font-size:12px;opacity:.7">Go to step-by-step logging</div>
-        </a>
-
-        <a href="{{ url_for('logs_page') }}" class="card"
-           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
-          <div style="font-size:13px;opacity:.75">Records</div>
-          <div style="font-weight:700;margin:6px 0">View Logs</div>
-          <div style="font-size:12px;opacity:.7">Recent saved sets</div>
-        </a>
-
-        <a href="{{ url_for('logout') }}" class="card"
-           style="padding:16px;border:1px solid #3b4244;border-radius:14px;text-decoration:none;color:inherit;background:#2a3031;display:flex;flex-direction:column;justify-content:center;min-height:92px">
-          <div style="font-size:13px;opacity:.75">Session</div>
-          <div style="font-weight:700;margin:6px 0">Logout</div>
-          <div style="font-size:12px;opacity:.7">Sign out from this device</div>
-        </a>
-
-        {% if session.get('role') == 'admin' %}
-          <a href="{{ url_for('admin_index') }}" class="card"
-             style="padding:16px;border:1px solid #6a7cff33;border-radius:14px;text-decoration:none;color:inherit;background:#262a3a;display:flex;flex-direction:column;justify-content:center;min-height:92px">
-            <div style="font-size:13px;opacity:.8">Administration</div>
-            <div style="font-weight:700;margin:6px 0">Admin Access</div>
-            <div style="font-size:12px;opacity:.75">Manage users &amp; logs</div>
-          </a>
-
-          <a href="{{ url_for('admin_users') }}" class="card"
-             style="padding:16px;border:1px solid #6a7cff33;border-radius:14px;text-decoration:none;color:inherit;background:#262a3a;display:flex;flex-direction:column;justify-content:center;min-height:92px">
-            <div style="font-size:13px;opacity:.8">Administration</div>
-            <div style="font-weight:700;margin:6px 0">Admin — Users</div>
-            <div style="font-size:12px;opacity:.75">Invite, promote, reset passwords</div>
-          </a>
-        {% endif %}
-      </div>
-
-      <!-- Recent logs -->
-      <div style="display:flex;align-items:center;gap:8px;margin:10px 6px 8px">
-        <h3 style="margin:0">Recent logs</h3>
-        <span id="db-loader" class="loader-dumbbell" style="display:none"><i></i></span>
-      </div>
-      <ul id="recent" style="padding-left:22px;margin:0 6px;color:#e9eef0;font-size:14px"></ul>
-      <p id="empty" style="opacity:.7;display:none;margin:0 6px">No logs yet — start a workout.</p>
-      <p id="fetchErr" style="opacity:.8;display:none;margin:8px 6px 0;color:#ffd9d9">Couldn’t load logs right now.</p>
-    </section>
+    <div class="mt-6 flex gap-3">
+      <a href="{{ url_for('workouts') }}"
+         class="px-4 py-2 bg-green-500 text-white font-medium rounded-xl shadow hover:shadow-md transition">
+        Start Workout
+      </a>
+      <a href="{{ url_for('routines_page') }}"
+         class="px-4 py-2 bg-gray-100 text-gray-800 font-medium rounded-xl border border-gray-200 hover:bg-gray-200 transition">
+        My Routines
+      </a>
+    </div>
   </div>
+
+  <!-- Quick buttons -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <a href="{{ url_for('workouts') }}" 
+       class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-center font-medium text-gray-800 hover:shadow-sm transition">
+      Log
+    </a>
+    <a href="{{ url_for('logs_page') }}" 
+       class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-center font-medium text-gray-800 hover:shadow-sm transition">
+      History
+    </a>
+    <a href="#"
+       class="bg-white border border-gray-200 rounded-xl px-4 py-3 text-center font-medium text-gray-800 hover:shadow-sm transition">
+      Stats
+    </a>
+  </div>
+
+  <!-- Recent logs -->
+  <div class="bg-white rounded-2xl shadow p-6">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-semibold">Recent Logs</h3>
+      <span id="db-loader" class="text-sm text-gray-400 hidden">Loading…</span>
+    </div>
+
+    <ul id="recent" class="mt-4 divide-y divide-gray-100"></ul>
+
+    <p id="empty" class="mt-2 text-gray-500 hidden">No logs yet — start a workout.</p>
+    <p id="fetchErr" class="mt-2 text-red-600 hidden">Couldn’t load logs right now.</p>
+  </div>
+
+  {% if session.get('role') == 'admin' %}
+  <!-- Admin tools -->
+  <div class="bg-white rounded-2xl shadow p-6">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-semibold">Admin Tools</h3>
+      <span class="text-xs px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 border border-indigo-200">Admin</span>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-4">
+      <a href="{{ url_for('admin_index') }}"
+         class="block text-center bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-gray-800 hover:shadow-sm transition">
+        Admin Home
+      </a>
+      <a href="{{ url_for('admin_users') }}"
+         class="block text-center bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-gray-800 hover:shadow-sm transition">
+        Manage Users
+      </a>
+      <a href="{{ url_for('admin_logs') }}"
+         class="block text-center bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-gray-800 hover:shadow-sm transition">
+        All Logs
+      </a>
+      <a href="{{ url_for('admin_export_csv') }}"
+         class="block text-center bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-gray-800 hover:shadow-sm transition">
+        Export CSV
+      </a>
+
+      <button id="btn-push-test"
+              class="block text-center bg-white border border-gray-200 rounded-xl px-4 py-3 font-medium text-gray-800 hover:shadow-sm transition">
+        Test Push
+      </button>
+
+      <div class="grid grid-cols-2 gap-2">
+        <a href="/health/app"
+           class="block text-center bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-800 hover:shadow-sm transition">
+          App
+        </a>
+        <a href="/health/db"
+           class="block text-center bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-800 hover:shadow-sm transition">
+          DB
+        </a>
+        <a href="/health/google"
+           class="block text-center bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-800 hover:shadow-sm transition">
+          Google
+        </a>
+        <a href="/health/csv"
+           class="block text-center bg-white border border-gray-200 rounded-xl px-3 py-2 text-sm font-medium text-gray-800 hover:shadow-sm transition">
+          CSV
+        </a>
+      </div>
+    </div>
+
+    <p id="admin-msg" class="mt-3 text-sm text-gray-600"></p>
+  </div>
+  {% endif %}
+
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
 (function(){
-  const loader  = document.getElementById("db-loader");
-  const list    = document.getElementById("recent");
-  const empty   = document.getElementById("empty");
-  const fetchErr= document.getElementById("fetchErr");
+  const loader   = document.getElementById("db-loader");
+  const list     = document.getElementById("recent");
+  const empty    = document.getElementById("empty");
+  const fetchErr = document.getElementById("fetchErr");
+
+  const bar   = document.getElementById("progress-bar");
+  const label = document.getElementById("progress-label");
+  const sub   = document.getElementById("today-subtitle");
+
+  function setProgress(pct){
+    const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+    bar.style.width = clamped + "%";
+    label.textContent = clamped + "%";
+  }
+  setProgress(0);
+
+  function guessProgramLabel(items){
+    if (!items || !items.length) return null;
+    const r = items[0];
+    const program = r.program || "";
+    const dayCode = (r.day_code || "").replace("_", " ").replace(/\b\w/g, c => c.toUpperCase());
+    if (program && dayCode) return `${program} • ${dayCode}`;
+    if (program) return program;
+    const ex = (r.exercise || "").toLowerCase();
+    const upper = ["bench","press","row","pull","curl","lat","shoulder","tricep","bicep","chest","dip","push-up"];
+    const lower = ["squat","deadlift","leg","ham","quad","calf","glute","lunge","hip","rdl"];
+    if (upper.some(k => ex.includes(k))) return "Upper • based on last session";
+    if (lower.some(k => ex.includes(k))) return "Lower • based on last session";
+    return null;
+  }
+
+  function renderItem(r){
+    const li = document.createElement("li");
+    li.className = "py-3 flex items-center justify-between";
+    const left = document.createElement("div");
+    const right = document.createElement("div");
+
+    const isCardio = String(r.exercise || "").toLowerCase().startsWith("cardio");
+    const main = isCardio
+      ? `${r.exercise} — ${r.reps || 0} min`
+      : `${r.exercise} — ${r.reps || 0} reps @ ${Number(r.weight_kg || 0).toFixed(1)}kg`;
+
+    left.innerHTML = `
+      <div class="font-medium text-gray-900">${main}</div>
+      <div class="text-sm text-gray-500">
+        ${r.date || ""} • ${r.program || "Session"} ${r.day_code ? ("• " + r.day_code) : ""} ${r.rpe ? ("• RPE " + r.rpe) : ""}
+      </div>
+    `;
+
+    right.innerHTML = `<div class="text-sm text-gray-400">${r.session_id || ""}</div>`;
+
+    li.appendChild(left);
+    li.appendChild(right);
+    list.appendChild(li);
+  }
 
   async function loadLogs(){
     try{
-      loader.style.display = "inline-block";
+      loader.classList.remove("hidden");
       const res = await fetch("/api/logs?limit=5", { headers: { "Accept":"application/json" }});
       if(!res.ok) throw new Error("HTTP " + res.status);
       const data = await res.json();
 
       if(!data.ok || !Array.isArray(data.items) || data.items.length === 0){
-        empty.style.display = "block";
+        empty.classList.remove("hidden");
         return;
       }
-      data.items.forEach(r=>{
-        const li  = document.createElement("li");
-        const st  = r.sets ? ` (set ${r.sets})` : "";
-        li.textContent = `${r.date} • ${r.exercise} — ${r.reps} reps @ ${r.weight_kg}kg${st}`;
-        list.appendChild(li);
-      });
+
+      const labelGuess = guessProgramLabel(data.items);
+      if (labelGuess) sub.textContent = labelGuess;
+
+      data.items.forEach(renderItem);
     }catch(e){
       console.warn("recent logs failed", e);
-      fetchErr.style.display = "block";
-      empty.style.display = "block";
+      fetchErr.classList.remove("hidden");
+      empty.classList.remove("hidden");
     }finally{
-      loader.style.display = "none";
+      loader.classList.add("hidden");
     }
   }
-
   loadLogs();
+
+  // Admin push test
+  const pushBtn = document.getElementById("btn-push-test");
+  const adminMsg = document.getElementById("admin-msg");
+  if (pushBtn) {
+    pushBtn.addEventListener("click", async () => {
+      adminMsg.textContent = "Sending test push…";
+      pushBtn.disabled = true;
+      try {
+        const res = await fetch("/api/push/test", { method: "POST", headers: { "Accept":"application/json" }});
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || ("HTTP " + res.status));
+        adminMsg.textContent = `Push sent: ${data.sent} succeeded, ${data.failed} failed.`;
+      } catch (err) {
+        adminMsg.textContent = "Push test failed (see server logs).";
+        console.error(err);
+      } finally {
+        pushBtn.disabled = false;
+      }
+    });
+  }
 })();
 </script>
 {% endblock %}
