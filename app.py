@@ -9,7 +9,7 @@ from functools import wraps
 
 from flask import (
     Flask, render_template, request, jsonify,
-    send_from_directory, abort, session, redirect, url_for, flash
+    send_from_directory, abort, session, redirect, url_for, flash, make_response
 )
 
 from sqlalchemy import (
@@ -17,6 +17,7 @@ from sqlalchemy import (
     UniqueConstraint, text, or_, func
 )
 from sqlalchemy.orm import declarative_base, sessionmaker
+from sqlalchemy.sql import expression
 from werkzeug.security import generate_password_hash, check_password_hash
 
 # --- .env ---
@@ -29,11 +30,11 @@ PW_SALT_LEN  = int(os.getenv("PASSWORD_SALT_LENGTH", "16"))
 HAS_SCRYPT   = hasattr(hashlib, "scrypt")
 # -------------------------------------------------
 
-# --- Google Sheets deps (kept; harmless if you stop using it) ---
+# --- Google Sheets deps (optional; safe to keep even if unused) ---
 import gspread
 from google.oauth2.service_account import Credentials
 
-# --- Web Push deps ---
+# --- Web Push deps (optional) ---
 from pywebpush import webpush, WebPushException
 
 # -----------------------------------------------------------------------------
@@ -154,9 +155,16 @@ def append_rows_to_csv(rows):
 # -----------------------------------------------------------------------------
 # DB setup
 # -----------------------------------------------------------------------------
-engine = create_engine("sqlite:///database.db", echo=False, future=True)
-Base = declarative_base()
-SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+# -----------------------------------------------------------------------------
+# DB setup (uses DATABASE_URL if present, else local SQLite)
+# -----------------------------------------------------------------------------
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///database.db")
+
+# Heroku-style URLs sometimes start with postgres:// — SQLAlchemy needs postgresql+psycopg2://
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg2://", 1)
+
+engine = create_engine(DATABASE_URL, echo=False, future=True)
 
 # -----------------------------------------------------------------------------
 # Models
@@ -193,7 +201,6 @@ class WorkoutLog(Base):
     day_code = Column(String(16), index=True)     # e.g. "upper_a"
     program_id = Column(Integer, index=True)      # FK-ish (no constraint for SQLite simplicity)
 
-# --- Web Push subscriptions ---
 class PushSubscription(Base):
     __tablename__ = "push_subscriptions"
     id = Column(Integer, primary_key=True)
@@ -203,7 +210,6 @@ class PushSubscription(Base):
     auth   = Column(String(255), nullable=False)
     ua     = Column(String(255), nullable=True)
 
-# --- NEW: Programs and routines --------------------------------------------
 class Program(Base):
     __tablename__ = "program"
     id = Column(Integer, primary_key=True)
@@ -238,14 +244,13 @@ def _col_exists(table: str, col: str) -> bool:
         res = c.execute(text(f"PRAGMA table_info({table})"))
         return any(r[1] == col for r in res.fetchall())
 
-def _add_column_if_missing(table: str, ddl: str):
-    if not _col_exists(table, ddl.split()[0]):
+def _add_column_if_missing(table: str, col: str, ddl: str):
+    if not _col_exists(table, col):
         with engine.begin() as c:
             c.execute(text(f"ALTER TABLE {table} ADD COLUMN {ddl}"))
 
-# Add columns only once
-_add_column_if_missing("workout_log", "day_code TEXT")
-_add_column_if_missing("workout_log", "program_id INTEGER")
+_add_column_if_missing("workout_log", "day_code", "day_code TEXT")
+_add_column_if_missing("workout_log", "program_id", "program_id INTEGER")
 
 # -----------------------------------------------------------------------------
 # Auth helpers
@@ -270,7 +275,7 @@ def is_admin():
         return False
     db = SessionLocal()
     try:
-        u = db.query(User).get(uid)
+        u = db.get(User, uid)
         return bool(u and u.role == "admin")
     finally:
         db.close()
@@ -299,7 +304,7 @@ VAPID_SUBJECT      = os.getenv("VAPID_SUBJECT", "mailto:admin@example.com")
 try:
     VAPID_PRIVATE_KEY_PEM = Path(VAPID_PRIVATE_FILE).read_text().strip() if VAPID_PRIVATE_FILE else None
     VAPID_PUBLIC_KEY_PEM  = Path(VAPID_PUBLIC_FILE).read_text().strip() if VAPID_PUBLIC_FILE else None
-except Exception as _e:
+except Exception:
     VAPID_PRIVATE_KEY_PEM = None
     VAPID_PUBLIC_KEY_PEM  = None
 
@@ -350,7 +355,7 @@ def send_push_all(db, payload: dict):
 def categorize_exercise(name: str) -> str:
     n = (name or "").lower()
     upper_kw = ["bench","press","row","pull","curl","lat","shoulder","tricep","bicep","chest","push-up","dip"]
-    lower_kw = ["squat","deadlift","leg","ham","quad","calf","glute","lunge","hip"]
+    lower_kw = ["squat","deadlift","leg","ham","quad","calf","glute","lunge","hip","rdl"]
     if any(k in n for k in upper_kw): return "Upper"
     if any(k in n for k in lower_kw): return "Lower"
     return "Other"
@@ -735,7 +740,7 @@ def api_list_programs():
     try:
         programs = []
         prog_rows = db.query(Program).filter(
-            (Program.user_id == uid) | (Program.user_id == None)
+            (Program.user_id == uid) | (Program.user_id.is_(None))
         ).order_by(Program.id.asc()).all()
 
         for p in prog_rows:
@@ -776,7 +781,7 @@ def admin_seed_default_program():
     """
     db = SessionLocal()
     try:
-        existing = db.query(Program).filter(Program.user_id == None, Program.name == "Upper/Lower (Template)").first()
+        existing = db.query(Program).filter(Program.user_id.is_(None), Program.name == "Upper/Lower (Template)").first()
         if existing:
             return jsonify({"ok": True, "created": False, "program_id": existing.id})
 
@@ -826,6 +831,28 @@ def admin_seed_default_program():
 # -----------------------------------------------------------------------------
 # API: export to Google Sheets (optional)
 # -----------------------------------------------------------------------------
+def _collect_rows_for_export(uid: int, limit: int = 100):
+    db = SessionLocal()
+    try:
+        items = (
+            db.query(WorkoutLog)
+              .filter(WorkoutLog.user_id == uid)
+              .order_by(WorkoutLog.id.desc())
+              .limit(limit)
+              .all()
+        )
+        return [{
+            "timestamp": x.timestamp.isoformat(timespec="seconds") if isinstance(x.timestamp, datetime) else str(x.timestamp),
+            "date": x.date, "day_name": x.day_name, "program": x.program,
+            "program_id": x.program_id, "day_code": x.day_code,
+            "session_id": x.session_id, "exercise": x.exercise, "sets": x.sets,
+            "reps": x.reps, "weight_kg": x.weight_kg, "rpe": x.rpe,
+            "volume_kg": x.volume_kg, "duration_min": x.duration_min,
+            "notes": x.notes, "source": x.source
+        } for x in items]
+    finally:
+        db.close()
+
 @app.post("/api/export/google")
 @login_required
 def api_export_google():
@@ -840,32 +867,30 @@ def api_export_google():
             limit = min(int(request.args.get("limit", 100)), 1000)
         except ValueError:
             limit = 100
-        db = SessionLocal()
-        try:
-            items = (
-                db.query(WorkoutLog)
-                  .filter(WorkoutLog.user_id == uid)
-                  .order_by(WorkoutLog.id.desc())
-                  .limit(limit)
-                  .all()
-            )
-            rows = [{
-                "timestamp": x.timestamp.isoformat(timespec="seconds") if isinstance(x.timestamp, datetime) else str(x.timestamp),
-                "date": x.date, "day_name": x.day_name, "program": x.program,
-                "program_id": x.program_id, "day_code": x.day_code,
-                "session_id": x.session_id, "exercise": x.exercise, "sets": x.sets,
-                "reps": x.reps, "weight_kg": x.weight_kg, "rpe": x.rpe,
-                "volume_kg": x.volume_kg, "duration_min": x.duration_min,
-                "notes": x.notes, "source": x.source
-            } for x in items]
-        finally:
-            db.close()
+        rows = _collect_rows_for_export(uid, limit)
 
     if not rows:
         return jsonify({"ok": False, "error": "no rows to export"}), 400
 
     try:
         append_logs_to_sheet(rows, uid, username)
+        return jsonify({"ok": True, "exported": len(rows)})
+    except Exception as e:
+        return jsonify({"ok": False, "error": str(e)}), 500
+
+# Backward-compatible alias used by an older page: GET /export/google
+@app.get("/export/google")
+@login_required
+def export_google_alias():
+    try:
+        limit = min(int(request.args.get("limit", 100)), 1000)
+    except ValueError:
+        limit = 100
+    rows = _collect_rows_for_export(current_user_id(), limit)
+    if not rows:
+        return jsonify({"ok": False, "error": "no rows to export"}), 400
+    try:
+        append_logs_to_sheet(rows, current_user_id(), session.get("username",""))
         return jsonify({"ok": True, "exported": len(rows)})
     except Exception as e:
         return jsonify({"ok": False, "error": str(e)}), 500
@@ -971,7 +996,7 @@ def admin_user_role(user_id):
 
     db = SessionLocal()
     try:
-        u = db.query(User).get(user_id)
+        u = db.get(User, user_id)
         if not u:
             flash("User not found.", "error")
             return redirect(url_for("admin_users"))
@@ -990,7 +1015,7 @@ def admin_user_reset_pw(user_id):
     temp_pw = secrets.token_urlsafe(8)
     db = SessionLocal()
     try:
-        u = db.query(User).get(user_id)
+        u = db.get(User, user_id)
         if not u:
             flash("User not found.", "error")
             return redirect(url_for("admin_users"))
@@ -1047,10 +1072,12 @@ def admin_export_csv():
         abort(404)
     return send_from_directory(str(DATA_DIR), CSV_PATH.name,
                                as_attachment=True, download_name="logs.csv")
+
 @app.get("/routines")
 @login_required
 def routines_page():
     return render_template("routines.html")
+
 # -----------------------------------------------------------------------------
 # Health checks
 # -----------------------------------------------------------------------------
@@ -1098,8 +1125,14 @@ def health_csv():
 # -----------------------------------------------------------------------------
 @app.route("/sw.js")
 def sw():
+    """Serve the service worker with sensible cache headers."""
     try:
-        return send_from_directory(".", "sw.js", mimetype="application/javascript")
+        resp = make_response(send_from_directory(".", "sw.js", mimetype="application/javascript"))
+        # prevent aggressive CDN caching after deploys
+        resp.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+        resp.headers["Pragma"] = "no-cache"
+        resp.headers["Expires"] = "0"
+        return resp
     except Exception:
         abort(404)
 
@@ -1125,4 +1158,4 @@ def err500(_):
 # Main
 # -----------------------------------------------------------------------------
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5001)), debug=True)
